@@ -44,7 +44,7 @@ selection.onChange(() => viewport.setHighlight(selection.selected?.object ?? nul
 let shotRoot: THREE.Object3D | null = null;
 let registry: SceneRegistry | null = null;
 let mixer: THREE.AnimationMixer | null = null;
-let original: ShotState = { clips: [], frameStart: 1, frameEnd: 1, poses: {} }; // as loaded
+let original: ShotState = { clips: [], frameStart: 1, frameEnd: 1, poses: {}, hidden: [] };
 let edited: ShotState = original; // original + every applied command
 let clips: THREE.AnimationClip[] = []; // the clips the mixer is playing
 let actions: THREE.AnimationAction[] = [];
@@ -76,6 +76,7 @@ function rebuild() {
   edited = replay(original, log.applied, { registry, fps: timeline.fps }).state;
   setClips(edited.clips);
   applyStillPoses();
+  applyVisibility();
   timeline.setRange(edited);
 }
 
@@ -90,6 +91,13 @@ function applyStillPoses() {
       if (value) node.object[property].fromArray(value);
     }
   }
+}
+
+/** Hidden objects (and everything parented to them) disappear; everything else shows. */
+function applyVisibility() {
+  if (!registry) return;
+  for (const node of registry.nodes) node.object.visible = !edited.hidden.includes(node.id);
+  outliner.setHidden(edited.hidden);
 }
 log.onChange(rebuild);
 
@@ -142,6 +150,7 @@ async function openFiles(files: File[]) {
       frameStart: shot.manifest.frameStart,
       frameEnd: shot.manifest.frameEnd,
       poses: {},
+      hidden: [],
     };
     log.clear(); // -> rebuild() from the new original
 

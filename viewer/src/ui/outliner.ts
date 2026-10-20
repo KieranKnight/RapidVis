@@ -11,6 +11,7 @@ const ICONS: Record<NodeType, string> = {
 
 export interface Outliner {
   setRegistry(registry: SceneRegistry | null): void;
+  setHidden(ids: readonly string[]): void;
 }
 
 export function createOutliner(root: HTMLElement, selection: Selection): Outliner {
@@ -22,6 +23,13 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
   let parents = new Set<string>();
   const collapsed = new Set<string>();
   const rows = new Map<string, HTMLElement>();
+
+  let hidden = new Set<string>();
+
+  /** Hidden itself, or inside a hidden group. */
+  function isHidden(id: string): boolean {
+    return hidden.has(id) || ancestorIds(nodes, id).some((ancestor) => hidden.has(ancestor));
+  }
 
   function toggle(node: SceneNode, wholeBranch: boolean) {
     const collapse = !collapsed.has(node.id);
@@ -38,7 +46,8 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
     const row = document.createElement('div');
     row.className = 'outliner-row';
     row.style.paddingLeft = `${4 + node.depth * 16}px`;
-    row.title = `${node.type}: ${node.id}`;
+    row.title = `${node.type}: ${node.id}${hidden.has(node.id) ? ' (hidden)' : ''}`;
+    row.classList.toggle('hidden-node', isHidden(node.id));
 
     const arrow = document.createElement('span');
     arrow.className = 'outliner-arrow';
@@ -95,6 +104,10 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
       nodes = registry?.nodes ?? [];
       parents = parentIds(nodes);
       collapsed.clear();
+      renderRows();
+    },
+    setHidden(ids) {
+      hidden = new Set(ids);
       renderRows();
     },
   };

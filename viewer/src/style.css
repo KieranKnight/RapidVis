@@ -152,6 +152,11 @@ body {
   color: white;
 }
 
+.outliner-row.hidden-node {
+  opacity: 0.4;
+  font-style: italic;
+}
+
 .viewport-toolbar {
   position: absolute;
   top: 8px;

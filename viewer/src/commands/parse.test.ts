@@ -43,9 +43,9 @@ describe('parseCommand', () => {
 
   it('rejects unknown verbs, even ones hiding on Object.prototype', () => {
     expect(parse('speedup cube 2')).toEqual({
-      error:
-        'Unknown command "speedup". Commands: retime, offset, trim, move-all, rotate-all, scale-all',
+      error: expect.stringMatching(/^Unknown command "speedup"\. Commands: retime, offset, /),
     });
+
     expect(parse('toString cube 2')).toHaveProperty('error');
   });
 
@@ -109,5 +109,10 @@ describe('parseCommand', () => {
 
   it.each(['move-all cube 1 up 3', 'scale-all cube 1 0 1'])('rejects %s', (text) => {
     expect(parse(text)).toHaveProperty('error');
+  });
+  it('parses hide and show, which take just an object', () => {
+    expect(parse('hide cube')).toEqual({ ok: { verb: 'hide', target: 'cube' } });
+    expect(parse('show "Key Light"')).toEqual({ ok: { verb: 'show', target: 'Key Light' } });
+    expect(parse('hide')).toEqual({ error: 'Usage: hide <object>' });
   });
 });

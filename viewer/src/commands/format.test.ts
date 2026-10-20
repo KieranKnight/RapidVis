@@ -30,6 +30,7 @@ describe('formatCommand', () => {
     { verb: 'trim', start: 10, end: 50 },
     { verb: 'move-all', target: 'Key Light', by: [0, -1.5, 2] },
     { verb: 'rotate-all', target: 'cube', by: [90, 0, 45] },
+    { verb: 'hide', target: 'Key Light' },
   ])('round-trips through the parser: %o', (command) => {
     const text = formatCommand(command);
     expect(parseCommand(text, (query) => registry.find(query))).toEqual({ ok: command });

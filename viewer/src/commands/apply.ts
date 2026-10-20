@@ -19,6 +19,8 @@ export interface ShotState extends FrameRange {
   clips: AnimationClip[];
   /** Edited poses of objects that aren't animated, by node id (the mixer never touches these). */
   poses: Readonly<Record<string, Partial<RestPose>>>;
+  /** Ids of hidden objects. Hiding an object hides everything parented to it too. */
+  hidden: readonly string[];
 }
 
 /** Things commands need to know about the shot, but never change. */
@@ -121,6 +123,12 @@ export function applyCommand(
       const before = latest(history, 'scale-all', command.target)?.by ?? [1, 1, 1];
       const change = blenderScaleToGltf(command.by.map((value, i) => value / before[i]));
       return { ok: editProperty(state, node, 'scale', scaleBy(change)) };
+    }
+    case 'hide':
+    case 'show': {
+      const others = state.hidden.filter((id) => id !== node.id);
+      const hidden = command.verb === 'hide' ? [...others, node.id] : others;
+      return { ok: { ...state, hidden } };
     }
   }
 }

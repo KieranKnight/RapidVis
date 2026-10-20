@@ -9,7 +9,9 @@ export type Command =
   // x y z in Blender axes: metres, degrees, or scale factors
   | { verb: 'move-all'; target: string; by: Vec3 }
   | { verb: 'rotate-all'; target: string; by: Vec3 }
-  | { verb: 'scale-all'; target: string; by: Vec3 };
+  | { verb: 'scale-all'; target: string; by: Vec3 }
+  | { verb: 'hide'; target: string }
+  | { verb: 'show'; target: string };
 
 export type ParseResult = { ok: Command } | { error: string };
 
@@ -23,6 +25,8 @@ const USAGE = {
   'move-all': 'move-all <object> <x> <y> <z>',
   'rotate-all': 'rotate-all <object> <x°> <y°> <z°>',
   'scale-all': 'scale-all <object> <x> <y> <z>',
+  hide: 'hide <object>',
+  show: 'show <object>',
 };
 
 type Verb = keyof typeof USAGE;
@@ -104,6 +108,12 @@ export function parseCommand(text: string, findNode: FindNode): ParseResult {
         return { error: `A scale of 0 would squash it flat. ${usage}` };
       }
       return { ok: { verb, target: found.ok.id, by } };
+    }
+    case 'hide':
+    case 'show': {
+      const found = findNode(args[0]);
+      if ('error' in found) return { error: describeFindError(found) };
+      return { ok: { verb, target: found.ok.id } };
     }
   }
 }

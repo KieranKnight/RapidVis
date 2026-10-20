@@ -18,5 +18,8 @@ export function formatCommand(command: Command): string {
     case 'rotate-all':
     case 'scale-all':
       return `${command.verb} ${quote(command.target)} ${command.by.join(' ')}`;
+    case 'hide':
+    case 'show':
+      return `${command.verb} ${quote(command.target)}`;
   }
 }

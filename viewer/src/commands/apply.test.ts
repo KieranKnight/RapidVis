@@ -27,6 +27,7 @@ const original: ShotState = {
   frameStart: 0,
   frameEnd: 20,
   poses: {},
+  hidden: [],
 };
 
 const retimeLight = (factor: number): Command => ({ verb: 'retime', target: 'Key Light', factor });
@@ -155,6 +156,25 @@ describe('move-all, rotate-all, scale-all', () => {
     const lightNode = context.registry.nodes.find((n) => n.id === 'Key Light') as SceneNode;
     expect(stillValue(original, lightNode, 'position')).toBeNull();
     expect(stillValue(original, groundNode, 'position')).toEqual([1, 2, 3]);
+  });
+});
+
+describe('hide and show', () => {
+  const hide = (target: string): Command => ({ verb: 'hide', target });
+  const show = (target: string): Command => ({ verb: 'show', target });
+
+  it('hide adds the object, show takes it away again', () => {
+    expect(run([hide('ground')]).hidden).toEqual(['ground']);
+    expect(run([hide('ground'), show('ground')]).hidden).toEqual([]);
+  });
+
+  it('hiding twice keeps one entry, and showing something visible does nothing', () => {
+    expect(run([hide('ground'), hide('ground')]).hidden).toEqual(['ground']);
+    expect(run([show('ground')]).hidden).toEqual([]);
+  });
+
+  it('works with DCC names', () => {
+    expect(run([hide('Key Light'), hide('ground')]).hidden).toEqual(['Key Light', 'ground']);
   });
 });
 

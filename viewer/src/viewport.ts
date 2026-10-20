@@ -111,7 +111,8 @@ export function createViewport(container: HTMLElement): Viewport {
   function updateHighlight() {
     highlightBox.visible = false;
     highlightAxes.visible = false;
-    if (!highlighted || gizmos.has(highlighted)) return; // gizmos show selection by turning orange
+    if (!highlighted || !isVisible(highlighted)) return;
+    if (gizmos.has(highlighted)) return; // gizmos show selection by turning orange
 
     highlightBounds.setFromObject(highlighted);
     if (!highlightBounds.isEmpty()) {
