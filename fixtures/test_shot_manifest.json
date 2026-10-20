@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "source": { "dcc": "blender", "version": "5.1", "file": "test_shot.blend" },
+  "fps": 24,
+  "frameStart": 1,
+  "frameEnd": 48,
+  "nodes": {
+    "cube": "cube",
+    "props": "props",
+    "shotCam": "shotCam",
+    "key_light": "key_light",
+    "ground": "ground"
+  },
+  "cameras": {
+    "shotCam": { "sensorWidth": 36, "sensorFit": "AUTO" }
+  }
+}

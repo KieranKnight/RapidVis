@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RapidVis</title>
+  </head>
+  <body>
+    <div id="app">
+      <aside id="outliner">
+        <button id="open-button" type="button">Open shot...</button>
+        <input id="file-input" type="file" accept=".glb,.json" multiple hidden />
+        <p id="status">Drop a .glb (and its manifest.json) anywhere</p>
+      </aside>
+      <main id="viewport"></main>
+      <footer id="timeline"></footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
