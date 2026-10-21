@@ -1,6 +1,6 @@
 import { AnimationClip, QuaternionKeyframeTrack, VectorKeyframeTrack } from 'three';
 import { describe, expect, it } from 'vitest';
-import { cloneForEdit } from './tracks';
+import { cloneForEdit, keyFrames } from './tracks';
 
 function makeClip() {
   return new AnimationClip('shot', -1, [
@@ -26,5 +26,27 @@ describe('cloneForEdit', () => {
     const { tracks } = cloneForEdit([original], 'cube', 'position');
     tracks[0].values[0] = 99;
     expect(original.tracks[0].values[0]).toBe(0);
+  });
+});
+
+describe('keyFrames', () => {
+  it("lists a node's keys in frames, sorted, without repeats", () => {
+    // cube.position and cube.quaternion both have keys at 0s and 1s
+    expect(keyFrames([makeClip()], 'cube', 24)).toEqual([0, 24]);
+  });
+
+  it('lists every key when no node is given', () => {
+    const clip = new AnimationClip('shot', -1, [
+      new VectorKeyframeTrack('cube.position', [0, 1], [0, 0, 0, 1, 1, 1]),
+      new VectorKeyframeTrack('shotCam.position', [0.5], [0, 0, 0]),
+    ]);
+    expect(keyFrames([clip], null, 24)).toEqual([0, 12, 24]);
+  });
+
+  it('keeps keys that sit between frames (after a retime)', () => {
+    const clip = new AnimationClip('shot', -1, [
+      new VectorKeyframeTrack('cube.position', [0.5 / 24], [0, 0, 0]),
+    ]);
+    expect(keyFrames([clip], 'cube', 24)).toEqual([0.5]);
   });
 });

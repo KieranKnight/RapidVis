@@ -13,6 +13,7 @@ import './style.css';
 import { Timeline, frameToSeconds } from './timeline';
 import { createCameraSelect } from './ui/cameraSelect';
 import { createCommandBar } from './ui/commandBar';
+import { droppedFiles } from './ui/droppedFiles';
 import { createOutliner } from './ui/outliner';
 import { createTimelineBar } from './ui/timelineBar';
 import { createToggleButton } from './ui/toggleButton';
@@ -199,7 +200,7 @@ window.addEventListener('dragleave', () => container.classList.remove('drag-over
 window.addEventListener('drop', (event) => {
   event.preventDefault();
   container.classList.remove('drag-over');
-  void openFiles(Array.from(event.dataTransfer?.files ?? []));
+  if (event.dataTransfer) void droppedFiles(event.dataTransfer).then(openFiles);
 });
 
 // --- Click to select in the viewport ---

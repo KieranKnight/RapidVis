@@ -1,5 +1,6 @@
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { parseManifest, type Manifest } from './manifest';
+import { pickShotFiles } from './shotFiles';
 
 export interface LoadedShot {
   name: string;
@@ -9,9 +10,9 @@ export interface LoadedShot {
 }
 
 export async function loadShot(files: File[]): Promise<LoadedShot> {
-  const glbFile = files.find((file) => file.name.toLowerCase().endsWith('.glb'));
-  if (!glbFile) throw new Error('Please choose a .glb file');
-  const manifestFile = files.find((file) => file.name.toLowerCase().endsWith('json'));
+  const picked = pickShotFiles(files);
+  if ('error' in picked) throw new Error(picked.error);
+  const { glb: glbFile, manifest: manifestFile } = picked.ok;
 
   const gltf = await new GLTFLoader().parseAsync(await glbFile.arrayBuffer(), '');
   const rawManifest = manifestFile ? await readJson(manifestFile) : null;
