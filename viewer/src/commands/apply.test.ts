@@ -159,6 +159,38 @@ describe('move-all, rotate-all, scale-all', () => {
   });
 });
 
+describe('move-key, rotate-key, scale-key', () => {
+  // fps is 10, so frame 10 is 1 second: halfway between the keys at 0s and 2s
+  const moveKey = (z: number, frame = 10): Command => ({
+    verb: 'move-key',
+    target: 'Key Light',
+    by: [0, 0, z],
+    frame,
+  });
+
+  it('adds a key on the curve and lifts only that key (Blender up = glTF Y)', () => {
+    const state = run([moveKey(2)]);
+    expect(Array.from(state.clips[0].tracks[0].times)).toEqual([0, 1, 2]);
+    expect(positionsAfter([moveKey(2)])).toEqual([0, 0, 0, 0.5, 2.5, 0.5, 1, 1, 1]);
+  });
+
+  it('is absolute per frame: the latest wins, and 0 0 0 puts the key back', () => {
+    expect(positionsAfter([moveKey(1), moveKey(3)])).toEqual([0, 0, 0, 0.5, 3.5, 0.5, 1, 1, 1]);
+    expect(positionsAfter([moveKey(1), moveKey(0)])).toEqual([0, 0, 0, 0.5, 0.5, 0.5, 1, 1, 1]);
+  });
+
+  it('keys on different frames are independent', () => {
+    expect(positionsAfter([moveKey(1, 0), moveKey(2, 20)])).toEqual([0, 1, 0, 1, 3, 1]);
+  });
+
+  it('suggests the -all command when that property is not animated', () => {
+    const command: Command = { verb: 'move-key', target: 'ground', by: [0, 0, 1], frame: 5 };
+    expect(applyCommand(original, command, context, [])).toEqual({
+      error: '"ground" has no position animation to key. Try move-all',
+    });
+  });
+});
+
 describe('hide and show', () => {
   const hide = (target: string): Command => ({ verb: 'hide', target });
   const show = (target: string): Command => ({ verb: 'show', target });

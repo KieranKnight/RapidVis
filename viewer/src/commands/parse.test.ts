@@ -16,7 +16,8 @@ root.add(
   named(new PointLight(), 'Key Light'),
 );
 const registry = new SceneRegistry(root);
-const parse = (text: string) => parseCommand(text, (query) => registry.find(query));
+const parse = (text: string, frame = 1) =>
+  parseCommand(text, (query) => registry.find(query), frame);
 
 describe('parseCommand', () => {
   it('parses retime, using the real node id', () => {
@@ -114,5 +115,23 @@ describe('parseCommand', () => {
     expect(parse('hide cube')).toEqual({ ok: { verb: 'hide', target: 'cube' } });
     expect(parse('show "Key Light"')).toEqual({ ok: { verb: 'show', target: 'Key Light' } });
     expect(parse('hide')).toEqual({ error: 'Usage: hide <object>' });
+  });
+
+  it('parses key commands, recording the frame from "at"', () => {
+    expect(parse('move-key cube 0 0 1 at 12')).toEqual({
+      ok: { verb: 'move-key', target: 'cube', by: [0, 0, 1], frame: 12 },
+    });
+  });
+
+  it('uses the current frame when there is no "at"', () => {
+    expect(parse('rotate-key cube 0 0 45', 30)).toMatchObject({ ok: { frame: 30 } });
+  });
+
+  it.each([
+    'move-key cube 0 0 1 at soon',
+    'move-key cube 0 0 1 at 12.5',
+    'move-key cube 0 0 at 12',
+  ])('rejects %s', (text) => {
+    expect(parse(text)).toHaveProperty('error');
   });
 });

@@ -18,6 +18,10 @@ export function formatCommand(command: Command): string {
     case 'rotate-all':
     case 'scale-all':
       return `${command.verb} ${quote(command.target)} ${command.by.join(' ')}`;
+    case 'move-key':
+    case 'rotate-key':
+    case 'scale-key':
+      return `${command.verb} ${quote(command.target)} ${command.by.join(' ')} at ${command.frame}`;
     case 'hide':
     case 'show':
       return `${command.verb} ${quote(command.target)}`;

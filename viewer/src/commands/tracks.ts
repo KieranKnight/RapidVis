@@ -30,3 +30,24 @@ export function cloneForEdit(
     });
   return { clips: copies, tracks };
 }
+
+/**
+ * Every key of `nodeName` (or of every node, when it's null), in frames: sorted, no repeats.
+ * Rounded to a thousandth of a frame, so float noise does not make two keys out of one.
+ */
+export function keyFrames(
+  clips: readonly AnimationClip[],
+  nodeName: string | null,
+  fps: number,
+): number[] {
+  const frames = new Set<number>();
+  for (const clip of clips) {
+    for (const track of clip.tracks) {
+      if (nodeName !== null && PropertyBinding.parseTrackName(track.name).nodeName !== nodeName) {
+        continue;
+      }
+      for (const time of track.times) frames.add(Math.round(time * fps * 1000) / 1000);
+    }
+  }
+  return [...frames].sort((a, b) => a - b);
+}

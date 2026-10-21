@@ -1,7 +1,8 @@
 import type { AnimationClip } from 'three';
-import { blenderRotationToGltf, blenderScaleToGltf, blenderToGltf } from '../axes';
+import { blenderRotationToGltf, blenderScaleToGltf, blenderToGltf, type Vec3 } from '../axes';
 import type { FrameRange } from '../manifest';
 import type { RestPose, SceneNode, SceneRegistry } from '../registry';
+import { editKeyAt } from './keys';
 import { offset } from './offset';
 import type { Command } from './parse';
 import { retime } from './retime';
@@ -37,6 +38,45 @@ function latest<V extends Command['verb']>(history: readonly Command[], verb: V,
     (c): c is Extract<Command, { verb: V }> =>
       c.verb === verb && 'target' in c && c.target === target,
   );
+}
+
+type KeyCommand = Extract<Command, { frame: number }>;
+
+/** The latest earlier key command of the same kind, for the same object and frame. */
+function latestKey(history: readonly Command[], command: KeyCommand) {
+  return history.findLast(
+    (c): c is KeyCommand =>
+      c.verb === command.verb &&
+      'frame' in c &&
+      c.target === command.target &&
+      c.frame === command.frame,
+  );
+}
+
+type TransformCommand = Extract<Command, { by: Vec3 }>;
+
+/**
+ * Which property a transform command changes, and the edit that takes it from `before`
+ * (the previous command's values, if any) to the command's values. Blender axes in, glTF out.
+ */
+function transformEdit(
+  command: TransformCommand,
+  before: readonly number[] | undefined,
+): { property: TransformProperty; edit: EditValue } {
+  if (command.verb.startsWith('move')) {
+    const from = before ?? [0, 0, 0];
+    const change = blenderToGltf(command.by.map((value, i) => value - from[i]));
+    return { property: 'position', edit: moveBy(change) };
+  }
+  if (command.verb.startsWith('rotate')) {
+    const from = before ?? [0, 0, 0];
+    // new rotation x (old rotation undone)
+    const change = blenderRotationToGltf(command.by).multiply(blenderRotationToGltf(from).invert());
+    return { property: 'quaternion', edit: rotateBy(change) };
+  }
+  const from = before ?? [1, 1, 1];
+  const change = blenderScaleToGltf(command.by.map((value, i) => value / from[i]));
+  return { property: 'scale', edit: scaleBy(change) };
 }
 
 /** Applies `edit` to a node's property: to its animation if it's animated, otherwise to its still pose. */
@@ -88,6 +128,9 @@ export function applyCommand(
   const found = context.registry.find(command.target);
   if ('error' in found) return { error: found.error };
   const node = found.ok;
+  if (command.verb.startsWith('scale-') && (node.type === 'camera' || node.type === 'light')) {
+    return { error: `"${node.id}" is a ${node.type}, and those can't be scaled` };
+  }
 
   // All edits are absolute, so each works out the change from where the last one left it
   switch (command.verb) {
@@ -103,26 +146,29 @@ export function applyCommand(
       if (!clips) return { error: `"${node.id}" has no animation to offset` };
       return { ok: { ...state, clips } };
     }
-    case 'move-all': {
-      const before = latest(history, 'move-all', command.target)?.by ?? [0, 0, 0];
-      const change = blenderToGltf(command.by.map((value, i) => value - before[i]));
-      return { ok: editProperty(state, node, 'position', moveBy(change)) };
-    }
-    case 'rotate-all': {
-      const before = latest(history, 'rotate-all', command.target)?.by ?? [0, 0, 0];
-      // new rotation x (old rotation undone)
-      const change = blenderRotationToGltf(command.by).multiply(
-        blenderRotationToGltf(before).invert(),
-      );
-      return { ok: editProperty(state, node, 'quaternion', rotateBy(change)) };
-    }
+    case 'move-all':
+    case 'rotate-all':
     case 'scale-all': {
-      if (node.type === 'camera' || node.type === 'light') {
-        return { error: `"${node.id}" is a ${node.type}, and those can't be scaled` };
+      const before = latest(history, command.verb, command.target)?.by;
+      const { property, edit } = transformEdit(command, before);
+      return { ok: editProperty(state, node, property, edit) };
+    }
+    case 'move-key':
+    case 'rotate-key':
+    case 'scale-key': {
+      const { property, edit } = transformEdit(command, latestKey(history, command)?.by);
+      const clips = editKeyAt(
+        state.clips,
+        node.gltfName,
+        property,
+        command.frame / context.fps,
+        edit,
+      );
+      if (!clips) {
+        const all = command.verb.replace('-key', '-all');
+        return { error: `"${node.id}" has no ${property} animation to key. Try ${all}` };
       }
-      const before = latest(history, 'scale-all', command.target)?.by ?? [1, 1, 1];
-      const change = blenderScaleToGltf(command.by.map((value, i) => value / before[i]));
-      return { ok: editProperty(state, node, 'scale', scaleBy(change)) };
+      return { ok: { ...state, clips } };
     }
     case 'hide':
     case 'show': {

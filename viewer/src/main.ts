@@ -4,8 +4,10 @@ import { CommandLog } from './commands/log';
 import { parseCommand } from './commands/parse';
 import { createHistoryPanel } from './ui/historyPanel';
 
+import { keyFrames } from './commands/tracks';
 import { loadShot } from './loader';
 import { SceneRegistry } from './registry';
+import { nextKey } from './ruler';
 import { Selection } from './selection';
 import './style.css';
 import { Timeline, frameToSeconds } from './timeline';
@@ -34,7 +36,7 @@ const overlaysButton = createToggleButton(toolbar, 'Overlays', true, (on) =>
 );
 
 const timeline = new Timeline();
-createTimelineBar(getElement<HTMLElement>('#timeline'), timeline);
+const timelineBar = createTimelineBar(getElement<HTMLElement>('#timeline'), timeline);
 
 const selection = new Selection();
 const outliner = createOutliner(getElement<HTMLElement>('#outliner'), selection);
@@ -78,7 +80,18 @@ function rebuild() {
   applyStillPoses();
   applyVisibility();
   timeline.setRange(edited);
+  updateKeys();
 }
+
+let shownKeys: number[] = []; // what the ruler shows, and what ↑/↓ jump between
+
+/** Key markers: the selected object's keys, or every key when nothing is selected. */
+function updateKeys() {
+  const node = selection.selected;
+  shownKeys = keyFrames(edited.clips, node ? node.gltfName : null, timeline.fps);
+  timelineBar.setKeys(shownKeys);
+}
+selection.onChange(updateKeys);
 
 const TRANSFORM_PROPERTIES = ['position', 'quaternion', 'scale'] as const;
 
@@ -105,7 +118,7 @@ function runCommand(text: string): string | null {
   const currentRegistry = registry;
   if (!currentRegistry) return 'Open a shot first';
 
-  const parsed = parseCommand(text, (query) => currentRegistry.find(query));
+  const parsed = parseCommand(text, (query) => currentRegistry.find(query), timeline.frame);
   if ('error' in parsed) return parsed.error;
 
   // Dry run, so a command that can't apply is reported and never enters the log
@@ -153,8 +166,6 @@ async function openFiles(files: File[]) {
       hidden: [],
     };
     log.clear(); // -> rebuild() from the new original
-
-    timeline.configure(shot.manifest.fps, shot.manifest);
 
     cameraSelect.setCameras(
       shot.gltf.cameras.filter(
@@ -232,6 +243,13 @@ window.addEventListener('keydown', (event) => {
     timeline.step(1);
   } else if (event.code === 'ArrowLeft') {
     timeline.step(-1);
+  } else if (event.code === 'ArrowUp' || event.code === 'ArrowDown') {
+    event.preventDefault(); // stop the page from scrolling
+    const key = nextKey(shownKeys, timeline.frame, event.code === 'ArrowUp' ? 1 : -1);
+    if (key !== null) {
+      timeline.pause();
+      timeline.setFrame(key);
+    }
   } else if (event.code === 'Escape') {
     selection.select(null);
   } else if (event.code === 'KeyO') {

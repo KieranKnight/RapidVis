@@ -99,9 +99,63 @@ body {
   cursor: pointer;
 }
 
-.frame-slider {
+.ruler {
+  position: relative;
   flex: 1;
-  accent-color: #3a6fd8;
+  height: 36px;
+  overflow: hidden;
+  background: #1f2023;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none; /* a finger drag scrubs instead of scrolling */
+}
+
+.ruler-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+}
+
+.ruler-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 2px 0 0 3px;
+  border-left: 1px solid #3a3d44;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: #8a8d93;
+}
+
+.ruler-keys {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  height: 8px;
+}
+
+.ruler-key {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ffc040;
+  border-radius: 1px;
+  transform: translateX(-50%) rotate(45deg); /* centred on its frame, turned into a diamond */
+}
+
+.ruler-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #3a6fd8;
+  pointer-events: none;
 }
 
 .frame-label {

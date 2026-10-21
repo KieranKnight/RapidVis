@@ -10,6 +10,10 @@ export type Command =
   | { verb: 'move-all'; target: string; by: Vec3 }
   | { verb: 'rotate-all'; target: string; by: Vec3 }
   | { verb: 'scale-all'; target: string; by: Vec3 }
+  // one key, at a frame (always recorded, so replaying the log edits the same key)
+  | { verb: 'move-key'; target: string; by: Vec3; frame: number }
+  | { verb: 'rotate-key'; target: string; by: Vec3; frame: number }
+  | { verb: 'scale-key'; target: string; by: Vec3; frame: number }
   | { verb: 'hide'; target: string }
   | { verb: 'show'; target: string };
 
@@ -25,6 +29,9 @@ const USAGE = {
   'move-all': 'move-all <object> <x> <y> <z>',
   'rotate-all': 'rotate-all <object> <x°> <y°> <z°>',
   'scale-all': 'scale-all <object> <x> <y> <z>',
+  'move-key': 'move-key <object> <x> <y> <z> [at <frame>]',
+  'rotate-key': 'rotate-key <object> <x°> <y°> <z°> [at <frame>]',
+  'scale-key': 'scale-key <object> <x> <y> <z> [at <frame>]',
   hide: 'hide <object>',
   show: 'show <object>',
 };
@@ -53,12 +60,18 @@ function parseVec3(tokens: string[]): Vec3 | null {
   return x === null || y === null || z === null ? null : [x, y, z];
 }
 
+/** How many arguments a usage line asks for: one per <placeholder>, not counting [optional] parts. */
+function argumentCount(usage: string): number {
+  return (usage.replace(/\[.*?\]/g, '').match(/<[^>]+>/g) ?? []).length;
+}
+
 function describeFindError(result: { error: string; candidates: string[] }): string {
   if (result.candidates.length === 0) return result.error;
   return `${result.error}: ${result.candidates.join(', ')}`;
 }
 
-export function parseCommand(text: string, findNode: FindNode): ParseResult {
+/** `currentFrame` is the frame key commands use when no `at <frame>` is typed. */
+export function parseCommand(text: string, findNode: FindNode, currentFrame: number): ParseResult {
   if ((text.match(/"/g) ?? []).length % 2 === 1) return { error: 'Missing a closing quote (")' };
 
   const [word, ...args] = tokenize(text);
@@ -69,8 +82,18 @@ export function parseCommand(text: string, findNode: FindNode): ParseResult {
     return { error: `Unknown command "${word}". Commands: ${Object.keys(USAGE).join(', ')}` };
   }
   const usage = `Usage: ${USAGE[verb]}`;
-  const expected = USAGE[verb].split(' ').length - 1; // one argument per <placeholder>
-  if (args.length !== expected) return { error: usage };
+  // Key commands can end with "at <frame>"; without it they use the current frame
+  let frame = currentFrame;
+  if (verb.endsWith('-key') && args.at(-2)?.toLowerCase() === 'at') {
+    const typed = parseNumber(args[args.length - 1]);
+    if (typed === null || !Number.isInteger(typed)) {
+      return { error: `The frame must be a whole number. ${usage}` };
+    }
+    frame = typed;
+    args.splice(-2); // drop "at <frame>" so the rest is checked as usual
+  }
+
+  if (args.length !== argumentCount(USAGE[verb])) return { error: usage };
 
   switch (verb) {
     case 'retime': {
@@ -108,6 +131,18 @@ export function parseCommand(text: string, findNode: FindNode): ParseResult {
         return { error: `A scale of 0 would squash it flat. ${usage}` };
       }
       return { ok: { verb, target: found.ok.id, by } };
+    }
+    case 'move-key':
+    case 'rotate-key':
+    case 'scale-key': {
+      const found = findNode(args[0]);
+      if ('error' in found) return { error: describeFindError(found) };
+      const by = parseVec3(args.slice(1));
+      if (!by) return { error: `x, y and z must be numbers. ${usage}` };
+      if (verb === 'scale-key' && by.includes(0)) {
+        return { error: `A scale of 0 would squash it flat. ${usage}` };
+      }
+      return { ok: { verb, target: found.ok.id, by, frame } };
     }
     case 'hide':
     case 'show': {
