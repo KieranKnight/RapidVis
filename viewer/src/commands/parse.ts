@@ -1,5 +1,6 @@
 import type { Vec3 } from '../axes';
 import type { FindResult } from '../registry';
+import { COMMANDS, VERBS, isVerb } from './definitions';
 
 /** A command that has been checked and is ready to apply. `target` is always a real node id. */
 export type Command =
@@ -27,29 +28,6 @@ export type ParseResult = { ok: Command } | { error: string };
 
 /** How the parser looks up objects. In the app this is `registry.find`; tests can pass anything. */
 export type FindNode = (query: string) => FindResult;
-
-const USAGE = {
-  retime: 'retime <object> <factor>',
-  offset: 'offset <object> <frames>',
-  trim: 'trim <start> <end>',
-  'move-all': 'move-all <object> <x> <y> <z>',
-  'rotate-all': 'rotate-all <object> <x°> <y°> <z°>',
-  'scale-all': 'scale-all <object> <x> <y> <z>',
-  'move-key': 'move-key <object> <x> <y> <z> [at <frame>]',
-  'rotate-key': 'rotate-key <object> <x°> <y°> <z°> [at <frame>]',
-  'scale-key': 'scale-key <object> <x> <y> <z> [at <frame>]',
-  hide: 'hide <object>',
-  show: 'show <object>',
-  intensity: 'intensity <light> <factor>',
-  color: 'color <light> <#rrggbb>',
-  focal: 'focal <camera> <mm>',
-};
-
-type Verb = keyof typeof USAGE;
-
-function isVerb(word: string): word is Verb {
-  return Object.hasOwn(USAGE, word); // not `in`: 'toString' in USAGE is true!
-}
 
 /** Splits on spaces, but keeps "quoted names" together: retime "Key Light" 2 */
 function tokenize(text: string): string[] {
@@ -89,14 +67,14 @@ function describeFindError(result: { error: string; candidates: string[] }): str
 export function parseCommand(text: string, findNode: FindNode, currentFrame: number): ParseResult {
   if ((text.match(/"/g) ?? []).length % 2 === 1) return { error: 'Missing a closing quote (")' };
 
-  const [word, ...args] = tokenize(text);
+  const [word, ...args] = tokenize(text.replace(/^\s*\//, '')); // the leading / is optional
   if (!word) return { error: 'Type a command, e.g. retime cube 1.5' };
 
   const verb = word.toLowerCase();
   if (!isVerb(verb)) {
-    return { error: `Unknown command "${word}". Commands: ${Object.keys(USAGE).join(', ')}` };
+    return { error: `Unknown command "${word}". Commands: ${VERBS.join(', ')}` };
   }
-  const usage = `Usage: ${USAGE[verb]}`;
+  const usage = `Usage: ${COMMANDS[verb].usage}`;
   // Key commands can end with "at <frame>"; without it they use the current frame
   let frame = currentFrame;
   if (verb.endsWith('-key') && args.at(-2)?.toLowerCase() === 'at') {
@@ -108,7 +86,7 @@ export function parseCommand(text: string, findNode: FindNode, currentFrame: num
     args.splice(-2); // drop "at <frame>" so the rest is checked as usual
   }
 
-  if (args.length !== argumentCount(USAGE[verb])) return { error: usage };
+  if (args.length !== argumentCount(COMMANDS[verb].usage)) return { error: usage };
 
   switch (verb) {
     case 'retime': {

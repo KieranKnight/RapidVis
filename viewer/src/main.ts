@@ -11,6 +11,7 @@ import { CommandLog } from './commands/log';
 import { parseCommand } from './commands/parse';
 import { createHistoryPanel } from './ui/historyPanel';
 
+import { suggest } from './commands/complete';
 import { keyFrames } from './commands/tracks';
 import { loadShot } from './loader';
 import { DEFAULT_CAMERA, type CameraInfo } from './manifest';
@@ -168,7 +169,9 @@ function runCommand(text: string): string | null {
   log.push(parsed.ok); // -> rebuild()
   return null;
 }
-const commandBar = createCommandBar(container, runCommand);
+const commandBar = createCommandBar(container, runCommand, (before) =>
+  suggest(before, registry?.nodes ?? []),
+);
 createHistoryPanel(getElement<HTMLElement>('#outliner'), log, (text) => commandBar.setText(text));
 
 viewport.start((deltaSeconds) => timeline.tick(deltaSeconds));
@@ -303,7 +306,7 @@ window.addEventListener('keydown', (event) => {
   } else if (event.code === 'KeyO') {
     overlaysButton.toggle();
   } else if (event.key === '/') {
-    event.preventDefault(); // don't type the / into the box
-    commandBar.focus();
+    event.preventDefault(); // the bar gets its own /, which also opens the menu
+    commandBar.setText('/');
   }
 });

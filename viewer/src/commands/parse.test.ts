@@ -38,6 +38,10 @@ describe('parseCommand', () => {
     });
   });
 
+  it('accepts an optional leading /, as typed in the slash menu', () => {
+    expect(parse('/retime cube 2')).toEqual({ ok: { verb: 'retime', target: 'cube', factor: 2 } });
+  });
+
   it('rejects empty input', () => {
     expect(parse('   ')).toHaveProperty('error');
   });

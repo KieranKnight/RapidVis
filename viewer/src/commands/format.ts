@@ -1,7 +1,7 @@
 import type { Command } from './parse';
 
 /** Quotes names with spaces, so the text can be typed (or parsed) again. */
-function quote(name: string): string {
+export function quote(name: string): string {
   return /\s/.test(name) ? `"${name}"` : name;
 }
 

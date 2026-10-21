@@ -279,6 +279,50 @@ body {
   border-color: #3a6fd8;
 }
 
+.command-menu {
+  width: 100%;
+  max-height: 220px; /* about 8 rows, then it scrolls */
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  font:
+    12px ui-monospace,
+    Consolas,
+    monospace;
+  background: rgba(30, 31, 34, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.command-menu:empty {
+  display: none;
+}
+
+.command-menu-row {
+  display: flex;
+  gap: 12px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.command-menu-row.selected {
+  background: #3a6fd8;
+}
+
+.command-menu-label {
+  min-width: 84px; /* lines the details up, since every command name fits */
+  color: var(--text);
+}
+
+.command-menu-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #8a8d93;
+}
+.command-menu-row.selected .command-menu-detail {
+  color: #dfe6f5;
+}
+
 .command-message {
   padding: 2px 8px;
   font:
