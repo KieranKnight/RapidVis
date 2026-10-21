@@ -1,6 +1,6 @@
 import { AnimationClip, QuaternionKeyframeTrack, VectorKeyframeTrack } from 'three';
 import { describe, expect, it } from 'vitest';
-import { cloneForEdit, keyFrames } from './tracks';
+import { animates, cloneForEdit, keyFrames } from './tracks';
 
 function makeClip() {
   return new AnimationClip('shot', -1, [
@@ -48,5 +48,14 @@ describe('keyFrames', () => {
       new VectorKeyframeTrack('cube.position', [0.5 / 24], [0, 0, 0]),
     ]);
     expect(keyFrames([clip], 'cube', 24)).toEqual([0.5]);
+  });
+});
+
+describe('animates', () => {
+  it('says whether a node, or one of its properties, has any keys', () => {
+    expect(animates([makeClip()], 'cube')).toBe(true);
+    expect(animates([makeClip()], 'cube', 'position')).toBe(true);
+    expect(animates([makeClip()], 'cube', 'scale')).toBe(false);
+    expect(animates([makeClip()], 'ground')).toBe(false);
   });
 });

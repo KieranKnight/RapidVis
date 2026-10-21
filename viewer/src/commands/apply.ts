@@ -3,10 +3,12 @@ import { blenderRotationToGltf, blenderScaleToGltf, blenderToGltf, type Vec3 } f
 import { verticalFov } from '../cameras';
 import type { CameraInfo, FrameRange } from '../manifest';
 import type { RestPose, SceneNode, SceneRegistry } from '../registry';
+import type { Verb } from './definitions';
 import { editKeyAt } from './keys';
 import { offset } from './offset';
 import type { Command } from './parse';
 import { retime } from './retime';
+import { animates } from './tracks';
 import {
   editTracks,
   moveBy,
@@ -113,10 +115,53 @@ export function stillValue(
   node: SceneNode,
   property: TransformProperty,
 ): readonly number[] | null {
-  const trackName = `${node.gltfName}.${property}`;
-  const animated = state.clips.some((clip) => clip.tracks.some((t) => t.name === trackName));
-  if (animated) return null;
+  if (animates(state.clips, node.gltfName, property)) return null;
   return state.poses[node.id]?.[property] ?? node.rest[property];
+}
+
+/** The property each key command edits. */
+const KEY_PROPERTY = {
+  'move-key': 'position',
+  'rotate-key': 'quaternion',
+  'scale-key': 'scale',
+} as const;
+
+/**
+ * Why `verb` can't be used on this object right now, or null if it can. applyCommand checks
+ * this first, and the slash menu asks it too, so the menu only offers objects that will work.
+ */
+export function targetError(verb: Verb, node: SceneNode, state: ShotState): string | null {
+  if (verb.startsWith('scale-') && (node.type === 'camera' || node.type === 'light')) {
+    return `"${node.id}" is a ${node.type}, and those can't be scaled`;
+  }
+  switch (verb) {
+    case 'retime':
+    case 'offset':
+      if (animates(state.clips, node.gltfName)) return null;
+      return `"${node.id}" has no animation to ${verb}`;
+    case 'move-key':
+    case 'rotate-key':
+    case 'scale-key': {
+      const property = KEY_PROPERTY[verb];
+      if (animates(state.clips, node.gltfName, property)) return null;
+      const all = verb.replace('-key', '-all');
+      return `"${node.id}" has no ${property} animation to key. Try ${all}`;
+    }
+    case 'intensity':
+    case 'color':
+      return node.type === 'light' ? null : `"${node.id}" is a ${node.type}, not a light`;
+    case 'focal':
+      if (node.restSettings.fov !== undefined) return null;
+      return `"${node.id}" is a ${node.type}, not a perspective camera`;
+    // These work on any object (trim takes no object at all)
+    case 'trim':
+    case 'move-all':
+    case 'rotate-all':
+    case 'scale-all':
+    case 'hide':
+    case 'show':
+      return null;
+  }
 }
 
 /** Merges new values into a node's settings, leaving the others as they were. */
@@ -170,9 +215,8 @@ export function applyCommand(
   const found = context.registry.find(command.target);
   if ('error' in found) return { error: found.error };
   const node = found.ok;
-  if (command.verb.startsWith('scale-') && (node.type === 'camera' || node.type === 'light')) {
-    return { error: `"${node.id}" is a ${node.type}, and those can't be scaled` };
-  }
+  const problem = targetError(command.verb, node, state);
+  if (problem) return { error: problem };
 
   // All edits are absolute, so each works out the change from where the last one left it
   switch (command.verb) {
@@ -220,14 +264,10 @@ export function applyCommand(
     }
     case 'intensity':
     case 'color': {
-      if (node.type !== 'light') return { error: `"${node.id}" is a ${node.type}, not a light` };
       const value = command.verb === 'intensity' ? command.factor : command.color;
       return { ok: setting(state, node.id, { [command.verb]: value }) };
     }
     case 'focal': {
-      if (node.restSettings.fov === undefined) {
-        return { error: `"${node.id}" is a ${node.type}, not a perspective camera` };
-      }
       return { ok: setting(state, node.id, { focal: command.mm }) };
     }
   }

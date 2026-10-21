@@ -12,6 +12,21 @@ export function isCubicSpline(track: KeyframeTrack): boolean {
   );
 }
 
+/** Whether a track animates `nodeName` (only its `property`, if one is given). */
+function isTrackOf(track: KeyframeTrack, nodeName: string, property?: string): boolean {
+  const { nodeName: node, propertyName } = PropertyBinding.parseTrackName(track.name);
+  return node === nodeName && (property === undefined || propertyName === property);
+}
+
+/** Whether any clip animates `nodeName` (only its `property`, if one is given). */
+export function animates(
+  clips: readonly AnimationClip[],
+  nodeName: string,
+  property?: string,
+): boolean {
+  return clips.some((clip) => clip.tracks.some((track) => isTrackOf(track, nodeName, property)));
+}
+
 /**
  * Copies the clips and finds the copied tracks that animate `nodeName`
  * (only its `property` tracks, if one is given). The returned tracks are safe to edit.
@@ -24,10 +39,7 @@ export function cloneForEdit(
   const copies = clips.map((clip) => clip.clone());
   const tracks = copies
     .flatMap((clip) => clip.tracks)
-    .filter((track) => {
-      const { nodeName: node, propertyName } = PropertyBinding.parseTrackName(track.name);
-      return node === nodeName && (property === undefined || propertyName === property);
-    });
+    .filter((track) => isTrackOf(track, nodeName, property));
   return { clips: copies, tracks };
 }
 

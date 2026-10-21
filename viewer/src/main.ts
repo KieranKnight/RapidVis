@@ -5,6 +5,7 @@ import {
   lightLook,
   replay,
   stillValue,
+  targetError,
   type ShotState,
 } from './commands/apply';
 import { CommandLog } from './commands/log';
@@ -170,7 +171,7 @@ function runCommand(text: string): string | null {
   return null;
 }
 const commandBar = createCommandBar(container, runCommand, (before) =>
-  suggest(before, registry?.nodes ?? []),
+  suggest(before, registry?.nodes ?? [], (verb, node) => targetError(verb, node, edited) === null),
 );
 createHistoryPanel(getElement<HTMLElement>('#outliner'), log, (text) => commandBar.setText(text));
 

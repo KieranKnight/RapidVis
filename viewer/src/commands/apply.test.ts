@@ -16,6 +16,7 @@ import {
   lightLook,
   replay,
   stillValue,
+  targetError,
   type ShotContext,
   type ShotState,
 } from './apply';
@@ -315,5 +316,32 @@ describe('focal', () => {
     const result = applyCommand(original, { verb: 'focal', target: 'ground', mm: 50 }, context, []);
     expect(result).toEqual({ error: '"ground" is a mesh, not a perspective camera' });
     expect(cameraFov(original, groundNode, DEFAULT_CAMERA, 1)).toBeNull();
+  });
+});
+
+describe('targetError', () => {
+  const lightNode = context.registry.nodes.find((n) => n.id === 'Key Light') as SceneNode;
+
+  it('only allows retime and offset on animated objects', () => {
+    expect(targetError('retime', lightNode, original)).toBeNull();
+    expect(targetError('offset', groundNode, original)).toBe('"ground" has no animation to offset');
+  });
+
+  it('only allows key commands on the property that is animated', () => {
+    expect(targetError('move-key', lightNode, original)).toBeNull();
+    expect(targetError('rotate-key', lightNode, original)).toBe(
+      '"Key Light" has no quaternion animation to key. Try rotate-all',
+    );
+  });
+
+  it("doesn't scale cameras or lights", () => {
+    expect(targetError('scale-all', lightNode, original)).toBe(
+      '"Key Light" is a light, and those can\'t be scaled',
+    );
+  });
+
+  it('lets whole-animation moves, hide and show work on anything', () => {
+    expect(targetError('move-all', groundNode, original)).toBeNull();
+    expect(targetError('hide', groundNode, original)).toBeNull();
   });
 });
