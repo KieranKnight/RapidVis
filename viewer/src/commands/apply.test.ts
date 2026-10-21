@@ -1,7 +1,24 @@
-import { AnimationClip, Group, Mesh, PointLight, Quaternion, VectorKeyframeTrack } from 'three';
+import {
+  AnimationClip,
+  Group,
+  Mesh,
+  PerspectiveCamera,
+  PointLight,
+  Quaternion,
+  VectorKeyframeTrack,
+} from 'three';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_CAMERA } from '../manifest';
 import { SceneRegistry, type SceneNode } from '../registry';
-import { applyCommand, replay, stillValue, type ShotContext, type ShotState } from './apply';
+import {
+  applyCommand,
+  cameraFov,
+  lightLook,
+  replay,
+  stillValue,
+  type ShotContext,
+  type ShotState,
+} from './apply';
 import type { Command } from './parse';
 
 const root = new Group();
@@ -10,7 +27,9 @@ light.name = 'Key_Light'; // how three.js names a Blender object called "Key Lig
 const ground = new Mesh();
 ground.name = 'ground';
 ground.position.set(1, 2, 3);
-root.add(light, ground);
+const shotCam = new PerspectiveCamera(40, 16 / 9);
+shotCam.name = 'shotCam';
+root.add(light, ground, shotCam);
 const context: ShotContext = {
   registry: new SceneRegistry(root, { 'Key Light': 'Key Light' }),
   fps: 10, // keeps the frame <-> seconds maths easy to read
@@ -28,6 +47,7 @@ const original: ShotState = {
   frameEnd: 20,
   poses: {},
   hidden: [],
+  settings: {},
 };
 
 const retimeLight = (factor: number): Command => ({ verb: 'retime', target: 'Key Light', factor });
@@ -234,5 +254,66 @@ describe('replay', () => {
     const result = replay(original, [ground, retimeLight(2)], context);
     expect(result.errors).toEqual(['"ground" has no animation to retime']);
     expect(Array.from(result.state.clips[0].tracks[0].times)).toEqual([0, 1]);
+  });
+});
+
+describe('intensity and color', () => {
+  const lightNode = context.registry.nodes.find((n) => n.id === 'Key Light') as SceneNode;
+  const intensity = (factor: number): Command => ({
+    verb: 'intensity',
+    target: 'Key Light',
+    factor,
+  });
+  const color = (value: string): Command => ({ verb: 'color', target: 'Key Light', color: value });
+
+  it('starts as the light was loaded', () => {
+    expect(lightLook(original, lightNode)).toEqual({ intensity: 1, color: '#ffffff' });
+  });
+
+  it('multiplies the loaded brightness, and the latest value wins', () => {
+    expect(lightLook(run([intensity(2)]), lightNode)).toMatchObject({ intensity: 2 });
+    expect(lightLook(run([intensity(2), intensity(0.5)]), lightNode)).toMatchObject({
+      intensity: 0.5,
+    });
+  });
+
+  it('sets the colour without touching the brightness', () => {
+    expect(lightLook(run([intensity(3), color('#ff8800')]), lightNode)).toEqual({
+      intensity: 3,
+      color: '#ff8800',
+    });
+  });
+
+  it('only works on lights', () => {
+    const result = applyCommand(
+      original,
+      { verb: 'intensity', target: 'ground', factor: 2 },
+      context,
+      [],
+    );
+    expect(result).toEqual({ error: '"ground" is a mesh, not a light' });
+    expect(lightLook(original, groundNode)).toBeNull();
+  });
+});
+
+describe('focal', () => {
+  const camNode = context.registry.nodes.find((n) => n.id === 'shotCam') as SceneNode;
+  const focal = (mm: number): Command => ({ verb: 'focal', target: 'shotCam', mm });
+  const fovAfter = (commands: Command[]) =>
+    cameraFov(run(commands), camNode, DEFAULT_CAMERA, 16 / 9);
+
+  it('keeps the loaded field of view until a focal length is typed', () => {
+    expect(fovAfter([])).toBe(40);
+  });
+
+  it('turns millimetres into a field of view, and the latest value wins', () => {
+    expect(fovAfter([focal(35)])).toBeCloseTo(32.27, 2); // Blender's 35mm on a 16:9 frame
+    expect(fovAfter([focal(35), focal(50)])).toBeCloseTo(fovAfter([focal(50)])!, 6);
+  });
+
+  it('only works on perspective cameras', () => {
+    const result = applyCommand(original, { verb: 'focal', target: 'ground', mm: 50 }, context, []);
+    expect(result).toEqual({ error: '"ground" is a mesh, not a perspective camera' });
+    expect(cameraFov(original, groundNode, DEFAULT_CAMERA, 1)).toBeNull();
   });
 });

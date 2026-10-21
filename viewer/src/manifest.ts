@@ -28,6 +28,8 @@ export interface ManifestResult {
 }
 
 const DEFAULT_FPS = 24;
+/** Blender's default camera sensor, used when the manifest doesn't say. */
+export const DEFAULT_CAMERA: CameraInfo = { sensorWidth: 36, sensorFit: 'AUTO' };
 const SENSOR_FITS: SensorFit[] = ['AUTO', 'HORIZONTAL', 'VERTICAL'];
 
 export function frameRangeFromClips(clips: AnimationClip[], fps: number): FrameRange {
@@ -72,10 +74,12 @@ function parseCameras(raw: unknown): Record<string, CameraInfo> {
   for (const [name, info] of Object.entries(raw)) {
     if (!isRecord(info)) continue;
     cameras[name] = {
-      sensorWidth: isPositiveNumber(info.sensorWidth) ? info.sensorWidth : 36,
+      sensorWidth: isPositiveNumber(info.sensorWidth)
+        ? info.sensorWidth
+        : DEFAULT_CAMERA.sensorWidth,
       sensorFit: SENSOR_FITS.includes(info.sensorFit as SensorFit)
         ? (info.sensorFit as SensorFit)
-        : 'AUTO',
+        : DEFAULT_CAMERA.sensorFit,
     };
   }
   return cameras;

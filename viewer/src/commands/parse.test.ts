@@ -135,3 +135,37 @@ describe('parseCommand', () => {
     expect(parse(text)).toHaveProperty('error');
   });
 });
+
+describe('light commands', () => {
+  it('parses intensity as a multiplier, where 0 switches the light off', () => {
+    expect(parse('intensity key 2.5')).toEqual({
+      ok: { verb: 'intensity', target: 'Key Light', factor: 2.5 },
+    });
+    expect(parse('intensity key 0')).toMatchObject({ ok: { factor: 0 } });
+    expect(parse('intensity key -1')).toHaveProperty('error');
+  });
+
+  it('parses colour as lowercase #rrggbb, with or without the #', () => {
+    expect(parse('color key #FF8800')).toEqual({
+      ok: { verb: 'color', target: 'Key Light', color: '#ff8800' },
+    });
+    expect(parse('color key ff8800')).toMatchObject({ ok: { color: '#ff8800' } });
+  });
+
+  it('rejects colours that are not six hex digits', () => {
+    for (const bad of ['orange', '#f80', '#ff88001', '#gg8800']) {
+      expect(parse(`color key ${bad}`)).toEqual({
+        error: 'The colour must be a hex code like #ff8800. Usage: color <light> <#rrggbb>',
+      });
+    }
+  });
+});
+
+describe('focal', () => {
+  it('parses a focal length in millimetres', () => {
+    expect(parse('focal shot 50')).toEqual({ ok: { verb: 'focal', target: 'shotCam', mm: 50 } });
+    expect(parse('focal shot 0')).toEqual({
+      error: 'The focal length must be above 0 mm. Usage: focal <camera> <mm>',
+    });
+  });
+});

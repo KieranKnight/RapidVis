@@ -1,4 +1,4 @@
-import { Camera, Light, Mesh, PropertyBinding, type Object3D } from 'three';
+import { Camera, Light, Mesh, PerspectiveCamera, PropertyBinding, type Object3D } from 'three';
 
 export type NodeType = 'mesh' | 'camera' | 'light' | 'group';
 
@@ -9,6 +9,13 @@ export interface RestPose {
   scale: number[];
 }
 
+/** A light's or camera's settings when the shot loaded (empty for everything else). */
+export interface RestSettings {
+  intensity?: number;
+  color?: string; // '#rrggbb'
+  fov?: number; // vertical field of view in degrees (perspective cameras)
+}
+
 export interface SceneNode {
   id: string; // The name commands use: The dcc name when the manifest has one
   gltfName: string;
@@ -16,9 +23,19 @@ export interface SceneNode {
   depth: number;
   object: Object3D;
   rest: RestPose;
+  restSettings: RestSettings;
 }
 
 export type FindResult = { ok: SceneNode } | { error: string; candidates: string[] };
+
+function restSettings(object: Object3D): RestSettings {
+  if (object instanceof Light) {
+    return { intensity: object.intensity, color: `#${object.color.getHexString()}` };
+  }
+  if (object instanceof PerspectiveCamera) return { fov: object.fov };
+
+  return {};
+}
 
 function nodeType(object: Object3D): NodeType {
   if (object instanceof Camera) return 'camera';
@@ -64,6 +81,7 @@ export class SceneRegistry {
         depth,
         object,
         rest,
+        restSettings: restSettings(object),
       };
 
       this.nodes.push(node);

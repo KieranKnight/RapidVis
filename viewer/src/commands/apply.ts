@@ -1,6 +1,7 @@
 import type { AnimationClip } from 'three';
 import { blenderRotationToGltf, blenderScaleToGltf, blenderToGltf, type Vec3 } from '../axes';
-import type { FrameRange } from '../manifest';
+import { verticalFov } from '../cameras';
+import type { CameraInfo, FrameRange } from '../manifest';
 import type { RestPose, SceneNode, SceneRegistry } from '../registry';
 import { editKeyAt } from './keys';
 import { offset } from './offset';
@@ -22,6 +23,14 @@ export interface ShotState extends FrameRange {
   poses: Readonly<Record<string, Partial<RestPose>>>;
   /** Ids of hidden objects. Hiding an object hides everything parented to it too. */
   hidden: readonly string[];
+  /** Light (and later camera) settings, by node id. Each is the latest value typed. */
+  settings: Readonly<Record<string, NodeSettings>>;
+}
+
+export interface NodeSettings {
+  intensity?: number; // multiplier on the loaded brightness
+  color?: string; // '#rrggbb'
+  focal?: number; // millimetres
 }
 
 /** Things commands need to know about the shot, but never change. */
@@ -110,6 +119,39 @@ export function stillValue(
   return state.poses[node.id]?.[property] ?? node.rest[property];
 }
 
+/** Merges new values into a node's settings, leaving the others as they were. */
+function setting(state: ShotState, id: string, values: NodeSettings): ShotState {
+  const merged = { ...state.settings[id], ...values };
+  return { ...state, settings: { ...state.settings, [id]: merged } };
+}
+
+/**
+ * A camera's vertical field of view (degrees) with the edits on top, or null if it has no lens.
+ * `camera` is its sensor from the manifest, and `aspect` its frame's width / height.
+ */
+export function cameraFov(
+  state: ShotState,
+  node: SceneNode,
+  camera: CameraInfo,
+  aspect: number,
+): number | null {
+  const { fov } = node.restSettings;
+  if (fov === undefined) return null;
+  const focal = state.settings[node.id]?.focal;
+  return focal === undefined ? fov : verticalFov(focal, camera, aspect);
+}
+
+/** A light's brightness and colour with the edits on top, or null if it isn't a light. */
+export function lightLook(
+  state: ShotState,
+  node: SceneNode,
+): { intensity: number; color: string } | null {
+  const { intensity, color } = node.restSettings;
+  if (intensity === undefined || color === undefined) return null;
+  const edits = state.settings[node.id] ?? {};
+  return { intensity: intensity * (edits.intensity ?? 1), color: edits.color ?? color };
+}
+
 /**
  * Applies one command, returning a new state. The inputs are never changed.
  * `history` is every command applied before this one.
@@ -175,6 +217,18 @@ export function applyCommand(
       const others = state.hidden.filter((id) => id !== node.id);
       const hidden = command.verb === 'hide' ? [...others, node.id] : others;
       return { ok: { ...state, hidden } };
+    }
+    case 'intensity':
+    case 'color': {
+      if (node.type !== 'light') return { error: `"${node.id}" is a ${node.type}, not a light` };
+      const value = command.verb === 'intensity' ? command.factor : command.color;
+      return { ok: setting(state, node.id, { [command.verb]: value }) };
+    }
+    case 'focal': {
+      if (node.restSettings.fov === undefined) {
+        return { error: `"${node.id}" is a ${node.type}, not a perspective camera` };
+      }
+      return { ok: setting(state, node.id, { focal: command.mm }) };
     }
   }
 }

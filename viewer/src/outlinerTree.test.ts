@@ -5,7 +5,7 @@ import type { SceneNode } from './registry';
 
 function node(id: string, depth: number): SceneNode {
   const rest = { position: [0, 0, 0], quaternion: [0, 0, 0, 1], scale: [1, 1, 1] };
-  return { id, gltfName: id, type: 'group', depth, object: new Object3D(), rest };
+  return { id, gltfName: id, type: 'group', depth, object: new Object3D(), rest, restSettings: {} };
 }
 
 // props

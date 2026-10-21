@@ -25,5 +25,11 @@ export function formatCommand(command: Command): string {
     case 'hide':
     case 'show':
       return `${command.verb} ${quote(command.target)}`;
+    case 'intensity':
+      return `intensity ${quote(command.target)} ${command.factor}`;
+    case 'color':
+      return `color ${quote(command.target)} ${command.color}`;
+    case 'focal':
+      return `focal ${quote(command.target)} ${command.mm}`;
   }
 }

@@ -32,6 +32,9 @@ describe('formatCommand', () => {
     { verb: 'rotate-all', target: 'cube', by: [90, 0, 45] },
     { verb: 'hide', target: 'Key Light' },
     { verb: 'move-key', target: 'Key Light', by: [0, 0, 1], frame: 12 },
+    { verb: 'intensity', target: 'Key Light', factor: 0.5 },
+    { verb: 'color', target: 'cube', color: '#ff8800' },
+    { verb: 'focal', target: 'cube', mm: 85 },
   ])('round-trips through the parser: %o', (command) => {
     const text = formatCommand(command);
     expect(parseCommand(text, (query) => registry.find(query), 1)).toEqual({ ok: command });

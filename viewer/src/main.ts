@@ -1,11 +1,19 @@
 import * as THREE from 'three';
-import { applyCommand, replay, stillValue, type ShotState } from './commands/apply';
+import {
+  applyCommand,
+  cameraFov,
+  lightLook,
+  replay,
+  stillValue,
+  type ShotState,
+} from './commands/apply';
 import { CommandLog } from './commands/log';
 import { parseCommand } from './commands/parse';
 import { createHistoryPanel } from './ui/historyPanel';
 
 import { keyFrames } from './commands/tracks';
 import { loadShot } from './loader';
+import { DEFAULT_CAMERA, type CameraInfo } from './manifest';
 import { SceneRegistry } from './registry';
 import { nextKey } from './ruler';
 import { Selection } from './selection';
@@ -47,11 +55,19 @@ selection.onChange(() => viewport.setHighlight(selection.selected?.object ?? nul
 let shotRoot: THREE.Object3D | null = null;
 let registry: SceneRegistry | null = null;
 let mixer: THREE.AnimationMixer | null = null;
-let original: ShotState = { clips: [], frameStart: 1, frameEnd: 1, poses: {}, hidden: [] };
+let original: ShotState = {
+  clips: [],
+  frameStart: 1,
+  frameEnd: 1,
+  poses: {},
+  hidden: [],
+  settings: {},
+};
 let edited: ShotState = original; // original + every applied command
 let clips: THREE.AnimationClip[] = []; // the clips the mixer is playing
 let actions: THREE.AnimationAction[] = [];
 const log = new CommandLog();
+let sensors = new Map<string, CameraInfo>(); // camera sensor sizes from the manifest, by glTF name
 
 function applyFrame() {
   if (!mixer) return;
@@ -80,6 +96,7 @@ function rebuild() {
   setClips(edited.clips);
   applyStillPoses();
   applyVisibility();
+  applySettings();
   timeline.setRange(edited);
   updateKeys();
 }
@@ -103,6 +120,27 @@ function applyStillPoses() {
     for (const property of TRANSFORM_PROPERTIES) {
       const value = stillValue(edited, node, property);
       if (value) node.object[property].fromArray(value);
+    }
+  }
+}
+
+/** Lights and cameras: their loaded settings, with any edits on top. */
+function applySettings() {
+  if (!registry) return;
+  for (const node of registry.nodes) {
+    const { object } = node;
+    const look = lightLook(edited, node);
+    if (look && object instanceof THREE.Light) {
+      object.intensity = look.intensity;
+      object.color.set(look.color);
+    }
+    if (object instanceof THREE.PerspectiveCamera) {
+      const sensor = sensors.get(node.gltfName) ?? DEFAULT_CAMERA;
+      const fov = cameraFov(edited, node, sensor, object.aspect);
+      if (fov !== null && fov !== object.fov) {
+        object.fov = fov;
+        object.updateProjectionMatrix(); // three.js only rebuilds the lens when asked
+      }
     }
   }
 }
@@ -153,6 +191,14 @@ async function openFiles(files: File[]) {
     viewport.setShot(shotRoot);
 
     registry = new SceneRegistry(shotRoot, shot.manifest.nodes);
+    // The manifest uses Blender's names, so tidy them the way three.js tidied the node names
+    sensors = new Map(
+      Object.entries(shot.manifest.cameras).map(([name, info]) => [
+        THREE.PropertyBinding.sanitizeNodeName(name),
+        info,
+      ]),
+    );
+
     selection.select(null);
     outliner.setRegistry(registry);
 
@@ -165,6 +211,7 @@ async function openFiles(files: File[]) {
       frameEnd: shot.manifest.frameEnd,
       poses: {},
       hidden: [],
+      settings: {},
     };
     log.clear(); // -> rebuild() from the new original
 

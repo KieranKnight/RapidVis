@@ -15,7 +15,13 @@ export type Command =
   | { verb: 'rotate-key'; target: string; by: Vec3; frame: number }
   | { verb: 'scale-key'; target: string; by: Vec3; frame: number }
   | { verb: 'hide'; target: string }
-  | { verb: 'show'; target: string };
+  | { verb: 'show'; target: string }
+  // lights: a brightness multiplier (1 = as loaded), and a colour as '#rrggbb'
+  | { verb: 'intensity'; target: string; factor: number }
+  | { verb: 'color'; target: string; color: string }
+  | { verb: 'color'; target: string; color: string }
+  // cameras: a focal length in millimetres, like Blender's Lens setting
+  | { verb: 'focal'; target: string; mm: number };
 
 export type ParseResult = { ok: Command } | { error: string };
 
@@ -34,6 +40,9 @@ const USAGE = {
   'scale-key': 'scale-key <object> <x> <y> <z> [at <frame>]',
   hide: 'hide <object>',
   show: 'show <object>',
+  intensity: 'intensity <light> <factor>',
+  color: 'color <light> <#rrggbb>',
+  focal: 'focal <camera> <mm>',
 };
 
 type Verb = keyof typeof USAGE;
@@ -63,6 +72,12 @@ function parseVec3(tokens: string[]): Vec3 | null {
 /** How many arguments a usage line asks for: one per <placeholder>, not counting [optional] parts. */
 function argumentCount(usage: string): number {
   return (usage.replace(/\[.*?\]/g, '').match(/<[^>]+>/g) ?? []).length;
+}
+
+/** A hex colour like #ff8800 (the # is optional), as lowercase '#rrggbb'. Null if it isn't one. */
+function parseHexColor(token: string): string | null {
+  const match = /^#?([0-9a-f]{6})$/i.exec(token);
+  return match ? `#${match[1].toLowerCase()}` : null;
 }
 
 function describeFindError(result: { error: string; candidates: string[] }): string {
@@ -149,6 +164,29 @@ export function parseCommand(text: string, findNode: FindNode, currentFrame: num
       const found = findNode(args[0]);
       if ('error' in found) return { error: describeFindError(found) };
       return { ok: { verb, target: found.ok.id } };
+    }
+    case 'intensity': {
+      const found = findNode(args[0]);
+      if ('error' in found) return { error: describeFindError(found) };
+      const factor = parseNumber(args[1]);
+      if (factor === null || factor < 0) {
+        return { error: `The factor must be a number, 0 or above. ${usage}` };
+      }
+      return { ok: { verb, target: found.ok.id, factor } };
+    }
+    case 'color': {
+      const found = findNode(args[0]);
+      if ('error' in found) return { error: describeFindError(found) };
+      const color = parseHexColor(args[1]);
+      if (!color) return { error: `The colour must be a hex code like #ff8800. ${usage}` };
+      return { ok: { verb, target: found.ok.id, color } };
+    }
+    case 'focal': {
+      const found = findNode(args[0]);
+      if ('error' in found) return { error: describeFindError(found) };
+      const mm = parseNumber(args[1]);
+      if (mm === null || mm <= 0) return { error: `The focal length must be above 0 mm. ${usage}` };
+      return { ok: { verb, target: found.ok.id, mm } };
     }
   }
 }
