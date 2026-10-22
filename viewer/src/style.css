@@ -19,16 +19,23 @@ body {
 
 #app {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: var(--sidebar-width, 240px) 1fr;
   grid-template-rows: 1fr 56px;
   grid-template-areas:
     'outliner viewport'
     'timeline timeline';
   height: 100vh;
 }
+#app.sidebar-collapsed {
+  grid-template-columns: 0 1fr;
+}
+#app.sidebar-collapsed #outliner {
+  display: none;
+}
 
 #outliner {
   grid-area: outliner;
+  position: relative; /* for its resize handle */
   background: var(--panel);
   border-right: 1px solid var(--border);
   padding: 8px;
@@ -184,6 +191,7 @@ body {
 
 .outliner-list {
   flex: 1;
+  min-height: 0; /* let it shrink (and scroll) when the history grows */
   overflow-y: auto;
   font-size: 13px;
 }
@@ -220,7 +228,8 @@ body {
   gap: 6px;
 }
 
-.toggle-button {
+.toggle-button,
+.export-button {
   padding: 4px 10px;
   font-size: 13px;
   color: var(--text);
@@ -342,6 +351,7 @@ body {
 .history {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
   padding-top: 8px;
   border-top: 1px solid var(--border);
@@ -399,6 +409,12 @@ body {
   white-space: nowrap;
 }
 
+.history-row.muted .history-text {
+  font-style: italic;
+  opacity: 0.5;
+}
+
+.history-mute,
 .history-remove {
   padding: 0 4px;
   color: inherit;
@@ -407,10 +423,108 @@ body {
   cursor: pointer;
   opacity: 0;
 }
+.history-row:hover .history-mute,
 .history-row:hover .history-remove {
   opacity: 0.7;
+}
+.history-mute {
+  font-weight: 700;
+}
+.history-mute[aria-pressed='true'] {
+  color: #ffc040; /* stays lit while muted, so it's easy to find again */
+  opacity: 1;
 }
 .history-remove:hover {
   color: #ff8a80;
   opacity: 1;
+}
+
+.splitter {
+  position: absolute;
+  z-index: 2; /* above the viewport it overlaps */
+  touch-action: none;
+}
+.splitter-x {
+  top: 0;
+  bottom: 0;
+  right: -4px; /* centred on the sidebar's edge */
+  width: 8px;
+  cursor: col-resize;
+}
+.splitter-y {
+  top: -4px; /* centred on the line above the history */
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: row-resize;
+}
+.splitter:hover,
+.splitter.dragging {
+  background: rgba(58, 111, 216, 0.5);
+}
+
+.export-dialog {
+  width: 340px;
+  padding: 16px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.export-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+.export-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.export-dialog label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.export-dialog select {
+  width: 200px;
+  padding: 3px 6px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.export-dialog progress {
+  width: 100%;
+}
+.export-summary,
+.export-message {
+  margin: 8px 0;
+  font-size: 12px;
+  opacity: 0.8;
+}
+.export-message:empty {
+  display: none;
+}
+.export-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.export-buttons button {
+  padding: 5px 14px;
+  color: var(--text);
+  background: #3a3d44;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.export-buttons .export-start {
+  color: white;
+  background: #3a6fd8;
+  border-color: #3a6fd8;
+}
+.export-buttons button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

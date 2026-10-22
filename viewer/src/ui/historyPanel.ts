@@ -4,7 +4,7 @@ import type { Command } from '../commands/parse';
 
 /**
  * Click a row to jump to that point, double-click to edit it in the command bar,
- * ✕ to remove it. The top row is the original shot, before any commands.
+ * M to mute it (compare the shot without it), ✕ to remove it.
  */
 export function createHistoryPanel(
   root: HTMLElement,
@@ -45,6 +45,22 @@ export function createHistoryPanel(
     }
 
     if (command && index <= current) {
+      const muted = log.isMuted(index);
+      row.classList.toggle('muted', muted);
+
+      const mute = document.createElement('button');
+      mute.type = 'button';
+      mute.className = 'history-mute';
+      mute.textContent = 'M';
+      mute.title = muted ? 'Unmute: apply this command again' : 'Mute: see the shot without it';
+      mute.setAttribute('aria-pressed', String(muted));
+      mute.addEventListener('mousedown', (event) => event.preventDefault()); // keep keyboard focus
+      mute.addEventListener('click', (event) => {
+        event.stopPropagation(); // don't also jump to this row
+        log.toggleMute(index);
+      });
+      row.append(mute);
+
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'history-remove';

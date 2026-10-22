@@ -3,6 +3,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { fitAspect, type Rect } from './cameras';
 import { createGizmo, GIZMO_COLOR, SELECTED_COLOR, type Gizmo } from './gizmos';
 
+/** Draws the shot on a canvas of its own, with no overlays. For movie export. */
+export interface CleanRenderer {
+  readonly canvas: HTMLCanvasElement;
+  draw(camera: THREE.PerspectiveCamera): void;
+  dispose(): void;
+}
+
 export interface Viewport {
   readonly canvas: HTMLCanvasElement;
   setShot(root: THREE.Object3D | null): void;
@@ -11,6 +18,7 @@ export interface Viewport {
   setOverlays(visible: boolean): void;
   pick(clientX: number, clientY: number): THREE.Object3D | null;
   start(onTick: (deltaSeconds: number) => void): void;
+  createCleanRenderer(width: number, height: number): CleanRenderer;
 }
 
 function disposeMaterial(material: THREE.Material) {
@@ -79,7 +87,9 @@ export function createViewport(container: HTMLElement): Viewport {
     renderer.setSize(width, height);
     freeCamera.aspect = width / height;
     freeCamera.updateProjectionMatrix();
+    render(); // resizing wipes the canvas, so redraw before the browser paints it blank
   };
+
   new ResizeObserver(resize).observe(container);
   resize();
 
@@ -205,6 +215,28 @@ export function createViewport(container: HTMLElement): Viewport {
       // The raycaster ignores `visible`, so skip hidden things ourselves (gizmos when overlays are off, etc.)
       const hit = raycaster.intersectObject(shot, true).find((h) => isVisible(h.object));
       return hit ? hit.object : null;
+    },
+
+    createCleanRenderer(width, height) {
+      const clean = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      clean.toneMapping = renderer.toneMapping; // the same look as the viewport
+      clean.toneMappingExposure = renderer.toneMappingExposure;
+      clean.setSize(width, height, false); // false: it's never on the page, so leave its CSS alone
+
+      return {
+        canvas: clean.domElement,
+        draw(camera) {
+          // Hide everything that's there to help, draw, then put it all back
+          const overlays = [grid, highlightBox, highlightAxes, ...gizmos.values()];
+          const shown = overlays.map((overlay) => overlay.visible);
+          for (const overlay of overlays) overlay.visible = false;
+          clean.render(scene, camera);
+          overlays.forEach((overlay, i) => (overlay.visible = shown[i]));
+        },
+        dispose() {
+          clean.dispose(); // browsers only allow a few WebGL canvases at once
+        },
+      };
     },
 
     start(onTick) {

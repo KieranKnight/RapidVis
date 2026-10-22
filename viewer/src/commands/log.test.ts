@@ -88,3 +88,39 @@ describe('CommandLog', () => {
     expect(listener).toHaveBeenCalledTimes(5);
   });
 });
+
+describe('muting', () => {
+  it('keeps a muted command in the history, but out of what is shown', () => {
+    const log = logWith('a', 'b', 'c');
+    log.toggleMute(1);
+    expect(targets(log.applied)).toEqual(['a', 'b', 'c']);
+    expect(targets(log.active)).toEqual(['a', 'c']);
+    expect(log.isMuted(1)).toBe(true);
+
+    log.toggleMute(1);
+    expect(targets(log.active)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('remembers a mute through undo and redo', () => {
+    const log = logWith('a', 'b');
+    log.toggleMute(1);
+    log.undo();
+    log.redo();
+    expect(targets(log.active)).toEqual(['a']);
+  });
+
+  it("can't mute a command that has been undone", () => {
+    const log = logWith('a', 'b');
+    log.undo();
+    log.toggleMute(1);
+    expect(log.isMuted(1)).toBe(false);
+  });
+
+  it('tells listeners, so the scene is rebuilt', () => {
+    const log = logWith('a');
+    const listener = vi.fn();
+    log.onChange(listener);
+    log.toggleMute(0);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+});

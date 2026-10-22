@@ -14,6 +14,8 @@ import { createHistoryPanel } from './ui/historyPanel';
 
 import { suggest } from './commands/complete';
 import { keyFrames } from './commands/tracks';
+import { recordMovie } from './export/movie';
+import { movieFileName, movieSize } from './export/settings';
 import { loadShot } from './loader';
 import { DEFAULT_CAMERA, type CameraInfo } from './manifest';
 import { SceneRegistry } from './registry';
@@ -24,7 +26,9 @@ import { Timeline, frameToSeconds } from './timeline';
 import { createCameraSelect } from './ui/cameraSelect';
 import { createCommandBar } from './ui/commandBar';
 import { droppedFiles } from './ui/droppedFiles';
+import { createExportDialog, type RunExport } from './ui/exportDialog';
 import { createOutliner } from './ui/outliner';
+import { createSidebar } from './ui/sidebar';
 import { createTimelineBar } from './ui/timelineBar';
 import { createToggleButton } from './ui/toggleButton';
 import { createViewport } from './viewport';
@@ -70,6 +74,8 @@ let clips: THREE.AnimationClip[] = []; // the clips the mixer is playing
 let actions: THREE.AnimationAction[] = [];
 const log = new CommandLog();
 let sensors = new Map<string, CameraInfo>(); // camera sensor sizes from the manifest, by glTF name
+let shotName = 'shot';
+let shotCameras: THREE.PerspectiveCamera[] = [];
 
 function applyFrame() {
   if (!mixer) return;
@@ -94,7 +100,7 @@ function setClips(newClips: THREE.AnimationClip[]) {
 /** The one place edits are made: the original clips + every applied command in the log. */
 function rebuild() {
   if (!registry) return;
-  edited = replay(original, log.applied, { registry, fps: timeline.fps }).state;
+  edited = replay(original, log.active, { registry, fps: timeline.fps }).state;
   setClips(edited.clips);
   applyStillPoses();
   applyVisibility();
@@ -174,6 +180,62 @@ const commandBar = createCommandBar(container, runCommand, (before) =>
   suggest(before, registry?.nodes ?? [], (verb, node) => targetError(verb, node, edited) === null),
 );
 createHistoryPanel(getElement<HTMLElement>('#outliner'), log, (text) => commandBar.setText(text));
+const sidebar = createSidebar(
+  getElement<HTMLElement>('#app'),
+  getElement<HTMLElement>('#outliner'),
+  getElement<HTMLElement>('.history'),
+);
+const sidebarButton = createToggleButton(toolbar, 'Sidebar', !sidebar.collapsed, (on) =>
+  sidebar.setCollapsed(!on),
+);
+
+// --- Movie export ---
+/** Records the frame range through a camera, edits and all, by stepping the timeline frame by frame. */
+const exportMovie: RunExport = async ({ camera, height }, onProgress, signal) => {
+  const size = movieSize(height, camera.aspect);
+  const clean = viewport.createCleanRenderer(size.width, size.height);
+  const { fps, frameStart, frameEnd } = timeline;
+  const returnTo = timeline.frame;
+  timeline.pause();
+
+  try {
+    const movie = await recordMovie({
+      canvas: clean.canvas,
+      fps,
+      frameStart,
+      frameEnd,
+      drawFrame: (frame) => {
+        timeline.setFrame(frame); // poses the whole shot for that frame
+        clean.draw(camera);
+      },
+      onProgress,
+      signal,
+    });
+    if (!movie) return null;
+    return {
+      movie,
+      fileName: movieFileName(shotName, camera.name || 'camera', frameStart, frameEnd),
+    };
+  } finally {
+    clean.dispose();
+    timeline.setFrame(returnTo);
+  }
+};
+
+const exportDialog = createExportDialog(document.body, exportMovie);
+const exportButton = document.createElement('button');
+exportButton.type = 'button';
+exportButton.className = 'export-button';
+exportButton.textContent = 'Export…';
+exportButton.addEventListener('click', () =>
+  exportDialog.open({
+    cameras: shotCameras,
+    fps: timeline.fps,
+    frameStart: timeline.frameStart,
+    frameEnd: timeline.frameEnd,
+  }),
+);
+toolbar.append(exportButton);
 
 viewport.start((deltaSeconds) => timeline.tick(deltaSeconds));
 
@@ -219,11 +281,11 @@ async function openFiles(files: File[]) {
     };
     log.clear(); // -> rebuild() from the new original
 
-    cameraSelect.setCameras(
-      shot.gltf.cameras.filter(
-        (camera): camera is THREE.PerspectiveCamera => camera instanceof THREE.PerspectiveCamera,
-      ),
+    shotName = shot.name;
+    shotCameras = shot.gltf.cameras.filter(
+      (camera): camera is THREE.PerspectiveCamera => camera instanceof THREE.PerspectiveCamera,
     );
+    cameraSelect.setCameras(shotCameras);
 
     const { fps, frameStart, frameEnd } = shot.manifest;
     status.textContent = [
@@ -275,7 +337,8 @@ window.addEventListener('keydown', (event) => {
   if (
     event.target instanceof HTMLButtonElement ||
     event.target instanceof HTMLInputElement ||
-    event.target instanceof HTMLSelectElement
+    event.target instanceof HTMLSelectElement ||
+    (event.target instanceof Element && event.target.closest('dialog')) // e.g. Space mid-export
   ) {
     return;
   }
@@ -306,6 +369,8 @@ window.addEventListener('keydown', (event) => {
     selection.select(null);
   } else if (event.code === 'KeyO') {
     overlaysButton.toggle();
+  } else if (event.code === 'KeyT') {
+    sidebarButton.toggle();
   } else if (event.key === '/') {
     event.preventDefault(); // the bar gets its own /, which also opens the menu
     commandBar.setText('/');
