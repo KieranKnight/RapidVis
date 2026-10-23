@@ -1,6 +1,6 @@
 import { MathUtils } from 'three';
 import { describe, expect, it } from 'vitest';
-import { fitAspect, verticalFov } from './cameras';
+import { fitAspect, focalLength, verticalFov } from './cameras';
 import type { CameraInfo } from './manifest';
 
 describe('fitAspect', () => {
@@ -36,5 +36,15 @@ describe('verticalFov', () => {
       fov(64),
       6,
     );
+  });
+});
+
+describe('focalLength', () => {
+  const blender: CameraInfo = { sensorWidth: 36, sensorFit: 'AUTO' };
+
+  it('undoes verticalFov', () => {
+    for (const aspect of [16 / 9, 2.39, 9 / 16]) {
+      expect(focalLength(verticalFov(35, blender, aspect), blender, aspect)).toBeCloseTo(35, 9);
+    }
   });
 });

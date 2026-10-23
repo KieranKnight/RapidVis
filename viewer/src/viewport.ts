@@ -17,6 +17,7 @@ export interface Viewport {
   setHighlight(object: THREE.Object3D | null): void;
   setOverlays(visible: boolean): void;
   pick(clientX: number, clientY: number): THREE.Object3D | null;
+  pictureRect(): Rect;
   start(onTick: (deltaSeconds: number) => void): void;
   createCleanRenderer(width: number, height: number): CleanRenderer;
 }
@@ -197,6 +198,12 @@ export function createViewport(container: HTMLElement): Viewport {
 
     setOverlays(visible) {
       overlaysVisible = visible;
+    },
+
+    /** Where the picture is, in CSS pixels from the top left: the letterboxed area for a shot camera. */
+    pictureRect() {
+      const rect = viewRect();
+      return { ...rect, y: container.clientHeight - rect.y - rect.height }; // WebGL counts y up
     },
 
     pick(clientX, clientY) {

@@ -3,6 +3,7 @@ import type { PerspectiveCamera } from 'three';
 export interface ExportChoice {
   camera: PerspectiveCamera;
   height: number; // lines: 720, 1080 or 2160
+  burnIn: boolean;
 }
 
 /** What the dialog is exporting from: the shot's cameras and its frame range. */
@@ -34,6 +35,10 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
   sizeSelect.append(...SIZES.map((lines) => new Option(`${lines}p`, String(lines))));
   sizeSelect.value = '1080';
 
+  const burnInBox = document.createElement('input');
+  burnInBox.type = 'checkbox';
+  burnInBox.checked = true; // review movies usually want it
+
   const summary = document.createElement('p');
   summary.className = 'export-summary';
 
@@ -57,6 +62,7 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
     heading,
     labelled('Camera', cameraSelect),
     labelled('Size', sizeSelect),
+    labelled('Burn-in', burnInBox),
     summary,
     progress,
     message,
@@ -70,6 +76,13 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
   function setRunning(controller: AbortController | null) {
     running = controller;
     cameraSelect.disabled = sizeSelect.disabled = exportButton.disabled = controller !== null;
+    const locked = controller !== null;
+    cameraSelect.disabled =
+      sizeSelect.disabled =
+      burnInBox.disabled =
+      exportButton.disabled =
+        locked;
+
     cancelButton.textContent = controller ? 'Cancel' : 'Close';
     progress.hidden = controller === null;
   }
@@ -84,7 +97,7 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
 
     try {
       const result = await run(
-        { camera, height: Number(sizeSelect.value) },
+        { camera, height: Number(sizeSelect.value), burnIn: burnInBox.checked },
         (done, total) => {
           progress.value = done / total;
           message.textContent = `Recording frame ${done} of ${total}…`;

@@ -33,6 +33,11 @@ import { createTimelineBar } from './ui/timelineBar';
 import { createToggleButton } from './ui/toggleButton';
 import { createViewport } from './viewport';
 
+import { burnInText, type BurnIn } from './burnin';
+import { focalLength } from './cameras';
+import { formatCommand } from './commands/format';
+import { createBurnInLayer, drawBurnIn } from './ui/burnInLayer';
+
 function getElement<T extends HTMLElement>(selector: string): T {
   const el = document.querySelector<T>(selector);
   if (!el) throw new Error(`Element not found: ${selector}`);
@@ -42,12 +47,22 @@ function getElement<T extends HTMLElement>(selector: string): T {
 // --- Components ---
 const container = getElement<HTMLElement>('#viewport');
 const viewport = createViewport(container);
-const cameraSelect = createCameraSelect(container, (camera) => viewport.setViewCamera(camera));
+let viewedCamera: THREE.PerspectiveCamera | null = null; // the shot camera looked through, if any
+const cameraSelect = createCameraSelect(container, (camera) => {
+  viewedCamera = camera;
+  viewport.setViewCamera(camera);
+});
+
 const toolbar = document.createElement('div');
 toolbar.className = 'viewport-toolbar';
 container.append(toolbar);
 const overlaysButton = createToggleButton(toolbar, 'Overlays', true, (on) =>
   viewport.setOverlays(on),
+);
+
+const burnInLayer = createBurnInLayer(container);
+const burnInButton = createToggleButton(toolbar, 'Burn-in', burnInLayer.visible, (on) =>
+  burnInLayer.setVisible(on),
 );
 
 const timeline = new Timeline();
@@ -189,10 +204,29 @@ const sidebarButton = createToggleButton(toolbar, 'Sidebar', !sidebar.collapsed,
   sidebar.setCollapsed(!on),
 );
 
+// --- Burn-in ---
+/** The burn-in for a frame seen through `camera` (null: the free camera). */
+function burnInFor(camera: THREE.PerspectiveCamera | null, frame: number): BurnIn {
+  const sensor = camera ? (sensors.get(camera.name) ?? DEFAULT_CAMERA) : null;
+  return burnInText({
+    shot: shotName,
+    camera: camera ? camera.name : 'Free camera',
+    focal: camera && sensor ? focalLength(camera.fov, sensor, camera.aspect) : null,
+    frame,
+    frameEnd: timeline.frameEnd,
+    commands: log.active.map(formatCommand),
+  });
+}
+
 // --- Movie export ---
 /** Records the frame range through a camera, edits and all, by stepping the timeline frame by frame. */
-const exportMovie: RunExport = async ({ camera, height }, onProgress, signal) => {
+const exportMovie: RunExport = async ({ camera, height, burnIn }, onProgress, signal) => {
   const size = movieSize(height, camera.aspect);
+  const frameCanvas = document.createElement('canvas'); // the clean render, plus any burn-in
+  frameCanvas.width = size.width;
+  frameCanvas.height = size.height;
+  const context = frameCanvas.getContext('2d');
+  if (!context) throw new Error("This browser can't draw on a 2D canvas");
   const clean = viewport.createCleanRenderer(size.width, size.height);
   const { fps, frameStart, frameEnd } = timeline;
   const returnTo = timeline.frame;
@@ -200,14 +234,17 @@ const exportMovie: RunExport = async ({ camera, height }, onProgress, signal) =>
 
   try {
     const movie = await recordMovie({
-      canvas: clean.canvas,
+      canvas: frameCanvas,
       fps,
       frameStart,
       frameEnd,
       drawFrame: (frame) => {
         timeline.setFrame(frame); // poses the whole shot for that frame
         clean.draw(camera);
+        context.drawImage(clean.canvas, 0, 0);
+        if (burnIn) drawBurnIn(context, burnInFor(camera, frame), { x: 0, y: 0, ...size });
       },
+
       onProgress,
       signal,
     });
@@ -237,7 +274,12 @@ exportButton.addEventListener('click', () =>
 );
 toolbar.append(exportButton);
 
-viewport.start((deltaSeconds) => timeline.tick(deltaSeconds));
+viewport.start((deltaSeconds) => {
+  timeline.tick(deltaSeconds);
+  burnInLayer.draw(viewport.pictureRect(), () =>
+    registry ? burnInFor(viewedCamera, timeline.frame) : null,
+  );
+});
 
 // --- Loading ---
 const status = getElement<HTMLParagraphElement>('#status');
@@ -369,6 +411,8 @@ window.addEventListener('keydown', (event) => {
     selection.select(null);
   } else if (event.code === 'KeyO') {
     overlaysButton.toggle();
+  } else if (event.code === 'KeyB') {
+    burnInButton.toggle();
   } else if (event.code === 'KeyT') {
     sidebarButton.toggle();
   } else if (event.key === '/') {

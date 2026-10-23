@@ -30,8 +30,17 @@ export function fitAspect(containerWidth: number, containerHeight: number, aspec
  * the manifest doesn't carry yet, so that case uses the width for now.
  */
 export function verticalFov(focal: number, camera: CameraInfo, aspect: number): number {
+  return MathUtils.radToDeg(2 * Math.atan(sensorHeight(camera, aspect) / 2 / focal));
+}
+
+/** The opposite of verticalFov: a camera's focal length in mm, from its vertical FOV in degrees. */
+export function focalLength(fov: number, camera: CameraInfo, aspect: number): number {
+  return sensorHeight(camera, aspect) / 2 / Math.tan(MathUtils.degToRad(fov) / 2);
+}
+
+/** How much of the sensor spans the frame's height, in mm. */
+function sensorHeight(camera: CameraInfo, aspect: number): number {
   const fitsWidth =
     camera.sensorFit === 'HORIZONTAL' || (camera.sensorFit === 'AUTO' && aspect >= 1);
-  const sensorHeight = fitsWidth ? camera.sensorWidth / aspect : camera.sensorWidth;
-  return MathUtils.radToDeg(2 * Math.atan(sensorHeight / 2 / focal));
+  return fitsWidth ? camera.sensorWidth / aspect : camera.sensorWidth;
 }

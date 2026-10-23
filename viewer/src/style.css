@@ -528,3 +528,11 @@ body {
   opacity: 0.5;
   cursor: default;
 }
+
+.burn-in-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* clicks go through to the 3D view */
+}
