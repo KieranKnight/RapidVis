@@ -39,12 +39,30 @@ describe('verticalFov', () => {
   });
 });
 
+describe('verticalFov with VERTICAL fit', () => {
+  it('spans the frame height with the sensor height, at any aspect', () => {
+    const vertical: CameraInfo = { sensorWidth: 36, sensorHeight: 24, sensorFit: 'VERTICAL' };
+    const fov = MathUtils.radToDeg(2 * Math.atan(24 / 70));
+    expect(verticalFov(35, vertical, 16 / 9)).toBeCloseTo(fov, 6);
+    expect(verticalFov(35, vertical, 9 / 16)).toBeCloseTo(fov, 6);
+  });
+});
+
 describe('focalLength', () => {
   const blender: CameraInfo = { sensorWidth: 36, sensorFit: 'AUTO' };
 
   it('undoes verticalFov', () => {
     for (const aspect of [16 / 9, 2.39, 9 / 16]) {
       expect(focalLength(verticalFov(35, blender, aspect), blender, aspect)).toBeCloseTo(35, 9);
+    }
+  });
+
+  it('undoes verticalFov', () => {
+    const vertical: CameraInfo = { sensorWidth: 36, sensorHeight: 24, sensorFit: 'VERTICAL' };
+    for (const camera of [blender, vertical]) {
+      for (const aspect of [16 / 9, 2.39, 9 / 16]) {
+        expect(focalLength(verticalFov(35, camera, aspect), camera, aspect)).toBeCloseTo(35, 9);
+      }
     }
   });
 });

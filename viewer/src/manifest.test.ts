@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { AnimationClip, VectorKeyframeTrack } from 'three';
+import { describe, expect, it } from 'vitest';
 import { frameRangeFromClips, parseManifest } from './manifest';
 
 // A clip keyed like the fixture cube: frames 1, 24, 48 at 24 fps
@@ -70,5 +70,16 @@ describe('parseManifest', () => {
       clip,
     ]);
     expect(manifest.nodes).toEqual({ cube: 'cube' });
+  });
+
+  it("reads a camera's sensor height when there is one, and leaves it out when not", () => {
+    const cameras = { tall: { sensorWidth: 36, sensorHeight: 24, sensorFit: 'VERTICAL' } };
+    expect(parseManifest({ ...validManifest, cameras }, [clip]).manifest.cameras.tall).toEqual(
+      cameras.tall,
+    );
+    const broken = { tall: { ...cameras.tall, sensorHeight: 'big' } };
+    expect(
+      parseManifest({ ...validManifest, cameras: broken }, [clip]).manifest.cameras.tall,
+    ).toEqual({ sensorWidth: 36, sensorFit: 'VERTICAL' });
   });
 });

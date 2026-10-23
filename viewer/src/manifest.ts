@@ -4,6 +4,7 @@ export type SensorFit = 'AUTO' | 'HORIZONTAL' | 'VERTICAL';
 
 export interface CameraInfo {
   sensorWidth: number; // millimetres
+  sensorHeight?: number; // millimeters, only VERTICAL fit uses it
   sensorFit: SensorFit;
 }
 
@@ -81,6 +82,7 @@ function parseCameras(raw: unknown): Record<string, CameraInfo> {
         ? (info.sensorFit as SensorFit)
         : DEFAULT_CAMERA.sensorFit,
     };
+    if (isPositiveNumber(info.sensorHeight)) cameras[name].sensorHeight = info.sensorHeight;
   }
   return cameras;
 }

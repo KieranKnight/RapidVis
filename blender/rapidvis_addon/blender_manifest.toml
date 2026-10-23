@@ -1,0 +1,12 @@
+schema_version = "1.0.0"
+
+id = "rapidvis"
+version = "0.1.0"
+name = "RapidVis"
+tagline = "Send shots to RapidVis for quick review and edits"
+maintainer = "Kieran Knight"
+type = "add-on"
+
+blender_version_min = "5.1.0"
+
+license = ["SPDX:GPL-3.0-or-later"]

@@ -1,9 +1,11 @@
 import type { PerspectiveCamera } from 'three';
+import { CODECS, type MovieCodec } from '../export/settings';
 
 export interface ExportChoice {
   camera: PerspectiveCamera;
   height: number; // lines: 720, 1080 or 2160
   burnIn: boolean;
+  codec: MovieCodec;
 }
 
 /** What the dialog is exporting from: the shot's cameras and its frame range. */
@@ -35,6 +37,11 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
   sizeSelect.append(...SIZES.map((lines) => new Option(`${lines}p`, String(lines))));
   sizeSelect.value = '1080';
 
+  const codecSelect = document.createElement('select');
+  for (const [codec, { name, note }] of Object.entries(CODECS)) {
+    codecSelect.append(new Option(`${name} (${note})`, codec));
+  }
+
   const burnInBox = document.createElement('input');
   burnInBox.type = 'checkbox';
   burnInBox.checked = true; // review movies usually want it
@@ -62,6 +69,7 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
     heading,
     labelled('Camera', cameraSelect),
     labelled('Size', sizeSelect),
+    labelled('Codec', codecSelect),
     labelled('Burn-in', burnInBox),
     summary,
     progress,
@@ -76,12 +84,9 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
   function setRunning(controller: AbortController | null) {
     running = controller;
     cameraSelect.disabled = sizeSelect.disabled = exportButton.disabled = controller !== null;
-    const locked = controller !== null;
-    cameraSelect.disabled =
-      sizeSelect.disabled =
-      burnInBox.disabled =
-      exportButton.disabled =
-        locked;
+    for (const control of [cameraSelect, sizeSelect, codecSelect, burnInBox, exportButton]) {
+      control.disabled = controller !== null;
+    }
 
     cancelButton.textContent = controller ? 'Cancel' : 'Close';
     progress.hidden = controller === null;
@@ -97,7 +102,12 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
 
     try {
       const result = await run(
-        { camera, height: Number(sizeSelect.value), burnIn: burnInBox.checked },
+        {
+          camera,
+          height: Number(sizeSelect.value),
+          burnIn: burnInBox.checked,
+          codec: codecSelect.value as MovieCodec, // only ever one of the options above
+        },
         (done, total) => {
           progress.value = done / total;
           message.textContent = `Recording frame ${done} of ${total}…`;

@@ -6,9 +6,11 @@ import {
   QUALITY_HIGH,
   canEncodeVideo,
 } from 'mediabunny';
+import { CODECS, type MovieCodec } from './settings';
 
 export interface RecordOptions {
-  canvas: HTMLCanvasElement; // Each frame is drawn here, at the movies size
+  canvas: HTMLCanvasElement; // each frame is drawn here, at the movie's size
+  codec: MovieCodec;
   fps: number;
   frameStart: number;
   frameEnd: number;
@@ -23,7 +25,7 @@ export interface RecordOptions {
  * Returns null if it was cancelled.
  */
 export async function recordMovie(options: RecordOptions): Promise<Blob | null> {
-  const { canvas, fps, frameStart, frameEnd, drawFrame, onProgress, signal } = options;
+  const { canvas, codec, fps, frameStart, frameEnd, drawFrame, onProgress, signal } = options;
   const { width, height } = canvas;
   if (!(await canEncodeVideo('avc', { width, height, quality: QUALITY_HIGH }))) {
     throw new Error(`This browser can't encode H.264 video at ${width}×${height}`);
@@ -33,7 +35,12 @@ export async function recordMovie(options: RecordOptions): Promise<Blob | null> 
     format: new Mp4OutputFormat({ fastStart: 'in-memory' }), // plays before it's fully loaded
     target: new BufferTarget(),
   });
-  const video = new CanvasSource(canvas, { codec: 'avc', quality: QUALITY_HIGH });
+
+  if (!(await canEncodeVideo(codec, { width, height, quality: QUALITY_HIGH }))) {
+    throw new Error(`This browser can't encode ${CODECS[codec].name} video at ${width}×${height}`);
+  }
+
+  const video = new CanvasSource(canvas, { codec, quality: QUALITY_HIGH });
   output.addVideoTrack(video, { frameRate: fps });
   await output.start();
 

@@ -1,3 +1,11 @@
+/** The codecs a movie can use. The keys are the names the encoder knows them by. */
+export const CODECS = {
+  avc: { name: 'H.264', note: 'plays everywhere' },
+  av1: { name: 'AV1', note: 'royalty-free, smaller files' },
+} as const;
+
+export type MovieCodec = keyof typeof CODECS;
+
 export interface MovieSize {
   width: number;
   height: number;

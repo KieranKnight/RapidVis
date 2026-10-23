@@ -220,7 +220,7 @@ function burnInFor(camera: THREE.PerspectiveCamera | null, frame: number): BurnI
 
 // --- Movie export ---
 /** Records the frame range through a camera, edits and all, by stepping the timeline frame by frame. */
-const exportMovie: RunExport = async ({ camera, height, burnIn }, onProgress, signal) => {
+const exportMovie: RunExport = async ({ camera, height, burnIn, codec }, onProgress, signal) => {
   const size = movieSize(height, camera.aspect);
   const frameCanvas = document.createElement('canvas'); // the clean render, plus any burn-in
   frameCanvas.width = size.width;
@@ -235,6 +235,7 @@ const exportMovie: RunExport = async ({ camera, height, burnIn }, onProgress, si
   try {
     const movie = await recordMovie({
       canvas: frameCanvas,
+      codec,
       fps,
       frameStart,
       frameEnd,
