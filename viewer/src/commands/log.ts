@@ -1,7 +1,7 @@
 import type { Command } from './parse';
 
 /** A command in the log. A muted one stays in the history but isn't applied. */
-interface Entry {
+export interface LogEntry {
   command: Command;
   muted: boolean;
 }
@@ -14,7 +14,7 @@ interface Entry {
  *   position:                     ^ 2  -> A and B applied, C can be redone
  */
 export class CommandLog {
-  private entries: Entry[] = [];
+  private entries: LogEntry[] = [];
 
   private position = 0;
   private listeners: Array<() => void> = [];
@@ -35,6 +35,11 @@ export class CommandLog {
       .slice(0, this.position)
       .filter((entry) => !entry.muted)
       .map((entry) => entry.command);
+  }
+
+  /** The applied commands with their muted flags: what "Save edits" writes. */
+  get appliedEntries(): readonly LogEntry[] {
+    return this.entries.slice(0, this.position);
   }
 
   isMuted(index: number): boolean {
@@ -88,6 +93,13 @@ export class CommandLog {
     const entry = this.entries[index];
     if (!entry || index >= this.position) return;
     this.entries = this.entries.with(index, { ...entry, muted: !entry.muted });
+    this.notify();
+  }
+
+  /** Replaces the whole history, e.g. with edits loaded from a file. Every entry ends up applied. */
+  load(entries: readonly LogEntry[]) {
+    this.entries = [...entries];
+    this.position = this.entries.length;
     this.notify();
   }
 

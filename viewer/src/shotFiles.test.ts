@@ -34,6 +34,12 @@ describe('pickShotFiles', () => {
     });
   });
 
+  it('never takes a saved edits file for the manifest', () => {
+    expect(pickShotFiles(files('sh010.glb', 'sh010.rvedits.json'))).toEqual({
+      ok: { glb: { name: 'sh010.glb' }, manifest: null },
+    });
+  });
+
   it('ignores case', () => {
     expect(pick('SH010.GLB', 'x.json', 'sh010.Manifest.JSON')).toMatchObject({
       manifest: 'sh010.Manifest.JSON',

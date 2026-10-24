@@ -536,3 +536,26 @@ body {
   height: 100%;
   pointer-events: none; /* clicks go through to the 3D view */
 }
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.history-header h2 {
+  margin: 0 auto 0 0; /* pushes the buttons to the right */
+}
+
+.history-action {
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--text);
+  background: #3a3d44;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.history-action:hover {
+  background: #45484f;
+}

@@ -1,4 +1,9 @@
-import { AnimationClip, QuaternionKeyframeTrack, VectorKeyframeTrack } from 'three';
+import {
+  AnimationClip,
+  NumberKeyframeTrack,
+  QuaternionKeyframeTrack,
+  VectorKeyframeTrack,
+} from 'three';
 import { describe, expect, it } from 'vitest';
 import { animates, cloneForEdit, keyFrames } from './tracks';
 
@@ -48,6 +53,13 @@ describe('keyFrames', () => {
       new VectorKeyframeTrack('cube.position', [0.5 / 24], [0, 0, 0]),
     ]);
     expect(keyFrames([clip], 'cube', 24)).toEqual([0.5]);
+  });
+  it("leaves out the add-on's lens and light curves, which have a sample on every frame", () => {
+    const clip = new AnimationClip('shot', -1, [
+      new VectorKeyframeTrack('shotCam.position', [0, 1], [0, 0, 0, 1, 1, 1]),
+      new NumberKeyframeTrack('shotCam.fov', [0, 0.5, 1], [40, 35, 30]),
+    ]);
+    expect(keyFrames([clip], 'shotCam', 24)).toEqual([0, 24]);
   });
 });
 

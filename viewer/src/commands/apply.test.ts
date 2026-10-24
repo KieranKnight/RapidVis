@@ -285,6 +285,15 @@ describe('intensity and color', () => {
     });
   });
 
+  it('goes on top of animated brightness, and a typed colour beats an animated one', () => {
+    const animated = { intensity: 40, color: '#ff0000' };
+    expect(lightLook(original, lightNode, animated)).toEqual(animated);
+    expect(lightLook(run([intensity(2), color('#00ff00')]), lightNode, animated)).toEqual({
+      intensity: 80,
+      color: '#00ff00',
+    });
+  });
+
   it('only works on lights', () => {
     const result = applyCommand(
       original,
@@ -310,6 +319,15 @@ describe('focal', () => {
   it('turns millimetres into a field of view, and the latest value wins', () => {
     expect(fovAfter([focal(35)])).toBeCloseTo(32.27, 2); // Blender's 35mm on a 16:9 frame
     expect(fovAfter([focal(35), focal(50)])).toBeCloseTo(fovAfter([focal(50)])!, 6);
+  });
+
+  it('follows an animated lens, until a focal length is typed for the whole shot', () => {
+    const animated = { fov: 25 };
+    expect(cameraFov(original, camNode, DEFAULT_CAMERA, 16 / 9, animated)).toBe(25);
+    expect(cameraFov(run([focal(35)]), camNode, DEFAULT_CAMERA, 16 / 9, animated)).toBeCloseTo(
+      32.27,
+      2,
+    );
   });
 
   it('only works on perspective cameras', () => {

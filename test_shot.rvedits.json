@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "shot": "test_shot",
+  "source": {
+    "dcc": "blender",
+    "file": "test_shot.blend"
+  },
+  "commands": [
+    {
+      "verb": "retime",
+      "target": "cube",
+      "factor": 20,
+      "muted": true
+    },
+    {
+      "verb": "color",
+      "target": "key_light",
+      "color": "#123456"
+    }
+  ]
+}

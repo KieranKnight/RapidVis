@@ -123,7 +123,19 @@ export function createGizmo(object: THREE.Object3D, size: number): Gizmo | null 
 
   const gizmo = new THREE.LineSegments(geometry, material);
   gizmo.name = `${object.name}_gizmo`;
+  gizmo.userData.size = size; // to reshape a camera's frustum later
+  if (object instanceof THREE.PerspectiveCamera) gizmo.userData.fov = object.fov;
   gizmo.userData.rvInternal = true; // tells the registry this isn't a scene item
   object.add(gizmo);
   return gizmo;
+}
+
+/** Reshapes a camera's frustum when its lens has changed: a zoom, or a `focal` edit. */
+export function updateCameraGizmo(gizmo: Gizmo, camera: THREE.PerspectiveCamera) {
+  if (gizmo.userData.fov === camera.fov) return;
+  gizmo.userData.fov = camera.fov;
+  const position = gizmo.geometry.getAttribute('position') as THREE.BufferAttribute;
+  position.array.set(cameraFrustumPoints(camera.fov, camera.aspect, gizmo.userData.size));
+  position.needsUpdate = true; // send the new points to the GPU
+  gizmo.geometry.computeBoundingSphere(); // so clicks still find it
 }

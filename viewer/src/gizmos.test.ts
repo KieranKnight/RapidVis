@@ -1,5 +1,13 @@
+import { PerspectiveCamera } from 'three';
 import { describe, expect, it } from 'vitest';
-import { cameraFrustumPoints, pointLightPoints, spotLightPoints, sunLightPoints } from './gizmos';
+import {
+  cameraFrustumPoints,
+  createGizmo,
+  pointLightPoints,
+  spotLightPoints,
+  sunLightPoints,
+  updateCameraGizmo,
+} from './gizmos';
 
 function expectPoint(points: number[], index: number, expected: [number, number, number]) {
   const actual = points.slice(index * 3, index * 3 + 3);
@@ -33,5 +41,16 @@ describe('gizmo shapes', () => {
     // 45° half-angle at distance 1 -> radius 1. The base ring starts after the 24-segment source ring
     const points = spotLightPoints(Math.PI / 4, 1);
     expectPoint(points, 48, [1, 0, -1]);
+  });
+});
+
+describe('updateCameraGizmo', () => {
+  it("reshapes the frustum to the camera's new lens", () => {
+    const camera = new PerspectiveCamera(90, 2);
+    const gizmo = createGizmo(camera, 1)!;
+    camera.fov = 45;
+    updateCameraGizmo(gizmo, camera);
+    const points = Array.from(gizmo.geometry.getAttribute('position').array);
+    expect(points).toEqual(Array.from(new Float32Array(cameraFrustumPoints(45, 2, 1))));
   });
 });

@@ -124,3 +124,21 @@ describe('muting', () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 });
+
+describe('loading', () => {
+  it('replaces the whole history, keeping each entry muted or not', () => {
+    const log = logWith('a', 'b');
+    log.undo(); // b can be redone, until the load replaces it
+    log.load([
+      { command: retime('x'), muted: false },
+      { command: retime('y'), muted: true },
+    ]);
+    expect(targets(log.applied)).toEqual(['x', 'y']);
+    expect(targets(log.active)).toEqual(['x']);
+    expect(log.undone).toEqual([]);
+    expect(log.appliedEntries).toEqual([
+      { command: retime('x'), muted: false },
+      { command: retime('y'), muted: true },
+    ]);
+  });
+});

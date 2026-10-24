@@ -1,4 +1,5 @@
 import { PropertyBinding, type AnimationClip, type KeyframeTrack } from 'three';
+import { SAMPLED_PROPERTIES } from '../curves';
 
 /** GLTFLoader tags its CUBICSPLINE factory like this. three's types don't declare `createInterpolant`. */
 interface TaggedTrack {
@@ -55,9 +56,9 @@ export function keyFrames(
   const frames = new Set<number>();
   for (const clip of clips) {
     for (const track of clip.tracks) {
-      if (nodeName !== null && PropertyBinding.parseTrackName(track.name).nodeName !== nodeName) {
-        continue;
-      }
+      const { nodeName: node, propertyName } = PropertyBinding.parseTrackName(track.name);
+      if (nodeName !== null && node !== nodeName) continue;
+      if (SAMPLED_PROPERTIES.has(propertyName)) continue; // a sample on every frame, not keys
       for (const time of track.times) frames.add(Math.round(time * fps * 1000) / 1000);
     }
   }

@@ -1,5 +1,6 @@
 import type { PerspectiveCamera } from 'three';
 import { CODECS, type MovieCodec } from '../export/settings';
+import { saveFile } from './download';
 
 export interface ExportChoice {
   camera: PerspectiveCamera;
@@ -159,14 +160,4 @@ function labelled(text: string, control: HTMLElement): HTMLLabelElement {
   const label = document.createElement('label');
   label.append(text, control);
   return label;
-}
-
-/** Hands a file to the browser to download. */
-function saveFile(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000); // give the download time to start
 }

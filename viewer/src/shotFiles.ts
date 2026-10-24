@@ -22,7 +22,10 @@ export function pickShotFiles<T extends Named>(files: readonly T[]): ShotFiles<T
   const glb = glbs[0];
 
   const shot = glb.name.replace(GLB, '').toLowerCase();
-  const jsons = files.filter((file) => file.name.toLowerCase().endsWith('.json'));
+  const jsons = files.filter((file) => {
+    const name = file.name.toLowerCase();
+    return name.endsWith('.json') && !name.endsWith('.rvedits.json'); // saved edits, not a manifest
+  });
   const named = (name: string) => jsons.find((file) => file.name.toLowerCase() === name);
   const manifest =
     named(`${shot}.manifest.json`) ??

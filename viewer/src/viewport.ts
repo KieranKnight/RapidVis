@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { fitAspect, type Rect } from './cameras';
-import { createGizmo, GIZMO_COLOR, SELECTED_COLOR, type Gizmo } from './gizmos';
+import { createGizmo, GIZMO_COLOR, SELECTED_COLOR, updateCameraGizmo, type Gizmo } from './gizmos';
 
 /** Draws the shot on a canvas of its own, with no overlays. For movie export. */
 export interface CleanRenderer {
@@ -139,6 +139,7 @@ export function createViewport(container: HTMLElement): Viewport {
     for (const [owner, gizmo] of gizmos) {
       gizmo.visible = overlaysVisible && owner !== viewCamera; // never draw the camera you're looking through
       gizmo.material.color.set(owner === highlighted ? SELECTED_COLOR : GIZMO_COLOR);
+      if (owner instanceof THREE.PerspectiveCamera) updateCameraGizmo(gizmo, owner);
     }
   }
 

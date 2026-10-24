@@ -2,6 +2,12 @@ import { formatCommand } from '../commands/format';
 import type { CommandLog } from '../commands/log';
 import type { Command } from '../commands/parse';
 
+/** Saving and loading the whole history, done by main.ts */
+export interface HistoryFiles {
+  save: () => void;
+  load: (file: File) => void;
+}
+
 /**
  * Click a row to jump to that point, double-click to edit it in the command bar,
  * M to mute it (compare the shot without it), ✕ to remove it.
@@ -10,6 +16,7 @@ export function createHistoryPanel(
   root: HTMLElement,
   log: CommandLog,
   onEdit: (text: string) => void,
+  files: HistoryFiles,
 ) {
   const section = document.createElement('section');
   section.className = 'history';
@@ -20,7 +27,27 @@ export function createHistoryPanel(
   const list = document.createElement('ol');
   list.className = 'history-list';
 
-  section.append(heading, list);
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json';
+  fileInput.hidden = true;
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = ''; // so choosing the same file again still counts as a change
+    if (file) files.load(file);
+  });
+
+  const header = document.createElement('div');
+  header.className = 'history-header';
+  header.append(
+    heading,
+    actionButton('Save', 'Save these edits to a file (Ctrl+S)', files.save),
+    actionButton('Load', 'Load edits from a file', () => fileInput.click()),
+    fileInput,
+  );
+
+  section.append(header, list);
+
   root.append(section);
 
   /** `index` is the command's place in the log; -1 is the original shot. */
@@ -87,4 +114,15 @@ export function createHistoryPanel(
 
   log.onChange(render);
   render();
+}
+
+function actionButton(text: string, title: string, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'history-action';
+  button.textContent = text;
+  button.title = title;
+  button.addEventListener('mousedown', (event) => event.preventDefault()); // keep keyboard focus
+  button.addEventListener('click', onClick);
+  return button;
 }

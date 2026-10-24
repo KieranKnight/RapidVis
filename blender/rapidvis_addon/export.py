@@ -5,7 +5,14 @@ import bpy
 from bpy.props import StringProperty
 from bpy_extras.io_utils import ExportHelper
 
-from .manifest import CameraSensor, SceneInfo, build_manifest, manifest_path
+from .manifest import (
+    CameraSensor,
+    Curves,
+    SceneInfo,
+    build_manifest,
+    light_intensity,
+    manifest_path,
+)
 
 # The glTF settings chosen
 GLTF_SETTINGS = {
@@ -21,6 +28,40 @@ GLTF_SETTINGS = {
     "export_yup": True,
     "export_import_convert_lighting_mode": "COMPAT",  # "Unitless": matches Blender's brightness
 }
+
+
+def data_values(obj: bpy.types.Object) -> dict:
+    """The values a camera's or light's data that can be animated, in the manifest's units"""
+    if obj.type == "CAMERA":
+        return {"lens": round(obj.data.lens, 4)}
+    light = obj.data
+    return {
+        "intensity": round(light_intensity(light.type, light.energy), 4),
+        "color": [round(channel, 4) for channel in light.color],
+    }
+
+
+def sample_curves(scene: bpy.types.Scene) -> Curves:
+    """Each animated camera's lens and light's power and colour, on every frame of the shot.
+    These animate the object's *data*, which the glTF exporter (in real-keys mode) leaves out."""
+    animated = [
+        obj
+        for obj in scene.objects
+        if obj.type in {"CAMERA", "LIGHT"} and obj.data.animation_data and obj.data.animation_data.action
+    ]
+    curves: Curves = {obj.name: {} for obj in animated}
+    if not animated:
+        return curves
+
+    current = scene.frame_current
+    for frame in range(scene.frame_start, scene.frame_end + 1):
+        scene.frame_set(frame)  # evaluates the animation on this frame
+        for obj in animated:
+            for prop, value in data_values(obj).items():
+                curves[obj.name].setdefault(prop, []).append(value)
+    scene.frame_set(current)  # leave the scene on the frame the artist was on
+    return curves
+
 
 def scene_info(scene: bpy.types.Scene) -> SceneInfo:
     """Reads what the manifest needs out of a Blende scene"""
@@ -38,6 +79,7 @@ def scene_info(scene: bpy.types.Scene) -> SceneInfo:
             for obj in scene.objects
             if obj.type == "CAMERA"
         },
+        curves=sample_curves(scene),
     )
 
 

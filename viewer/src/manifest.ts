@@ -1,4 +1,5 @@
 import type { AnimationClip } from 'three';
+import { parseCurves, type ShotCurves } from './curves';
 
 export type SensorFit = 'AUTO' | 'HORIZONTAL' | 'VERTICAL';
 
@@ -16,6 +17,7 @@ export interface Manifest {
   frameEnd: number;
   nodes: Record<string, string>; // glTF node name -> DCC object name
   cameras: Record<string, CameraInfo>;
+  curves: ShotCurves; // lens and light animation, which the .glb leaves out
 }
 
 export interface FrameRange {
@@ -121,6 +123,10 @@ export function parseManifest(raw: unknown, clips: AnimationClip[]): ManifestRes
     }
   }
 
+  const frameCount = range.frameEnd - range.frameStart + 1;
+  const curves = parseCurves(data.curves, frameCount);
+  warnings.push(...curves.warnings);
+
   return {
     manifest: {
       version: 1,
@@ -133,6 +139,7 @@ export function parseManifest(raw: unknown, clips: AnimationClip[]): ManifestRes
       ...range,
       nodes,
       cameras: parseCameras(data.cameras),
+      curves: curves.curves,
     },
     warnings,
   };

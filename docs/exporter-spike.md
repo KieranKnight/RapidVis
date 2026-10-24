@@ -6,17 +6,17 @@ It has an animated cube (3 keys) under the empty `props`, an animated camera `sh
 
 ## Exports compared
 
-| | A: `test_shot_keys.glb` | B: `test_shot_scene.glb` |
-|---|---|---|
-| Animation Mode | Active actions merged | Scene |
-| Always Sample Animations | off | on |
-| Optimize Animation Size | off | default |
-| Export Animation Pointer | off | on |
-| Cube translation | **3 keys, CUBICSPLINE** (real keys) | 48 samples, LINEAR (baked) |
-| Camera translation | **2 keys, CUBICSPLINE** | 48 samples, LINEAR |
-| Camera focal length | **not exported** | 48 samples via `KHR_animation_pointer` → `/cameras/0/perspective/yfov` |
-| glTF animations | 1 merged clip, `"Animation"` | 3 clips: `cube`, `shotCam`, `shotCam` (duplicate name) |
-| Re-import into Blender | fine | the camera appears to lose its movement (most likely because of the duplicate-named clips; not investigated further) |
+|                          | A: `test_shot_keys.glb`             | B: `test_shot_scene.glb`                                                                                             |
+| ------------------------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Animation Mode           | Active actions merged               | Scene                                                                                                                |
+| Always Sample Animations | off                                 | on                                                                                                                   |
+| Optimize Animation Size  | off                                 | default                                                                                                              |
+| Export Animation Pointer | off                                 | on                                                                                                                   |
+| Cube translation         | **3 keys, CUBICSPLINE** (real keys) | 48 samples, LINEAR (baked)                                                                                           |
+| Camera translation       | **2 keys, CUBICSPLINE**             | 48 samples, LINEAR                                                                                                   |
+| Camera focal length      | **not exported**                    | 48 samples via `KHR_animation_pointer` → `/cameras/0/perspective/yfov`                                               |
+| glTF animations          | 1 merged clip, `"Animation"`        | 3 clips: `cube`, `shotCam`, `shotCam` (duplicate name)                                                               |
+| Re-import into Blender   | fine                                | the camera appears to lose its movement (most likely because of the duplicate-named clips; not investigated further) |
 
 Shared settings: glTF Binary, Custom Properties ✅, Cameras ✅, Punctual Lights ✅, +Y Up ✅, Animations ✅.
 

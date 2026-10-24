@@ -13,11 +13,9 @@ import { parseCommand } from './commands/parse';
 import { createHistoryPanel } from './ui/historyPanel';
 
 import { suggest } from './commands/complete';
-import { keyFrames } from './commands/tracks';
 import { recordMovie } from './export/movie';
 import { movieFileName, movieSize } from './export/settings';
 import { loadShot } from './loader';
-import { DEFAULT_CAMERA, type CameraInfo } from './manifest';
 import { SceneRegistry } from './registry';
 import { nextKey } from './ruler';
 import { Selection } from './selection';
@@ -34,9 +32,14 @@ import { createToggleButton } from './ui/toggleButton';
 import { createViewport } from './viewport';
 
 import { burnInText, type BurnIn } from './burnin';
-import { focalLength } from './cameras';
+import { focalLength, verticalFov } from './cameras';
 import { formatCommand } from './commands/format';
+import { editsFile, readEdits } from './commands/serialize';
+import { animates, keyFrames } from './commands/tracks';
+import { curveTracks } from './curves';
+import { DEFAULT_CAMERA, type CameraInfo, type Manifest } from './manifest';
 import { createBurnInLayer, drawBurnIn } from './ui/burnInLayer';
+import { saveFile } from './ui/download';
 
 function getElement<T extends HTMLElement>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -90,6 +93,7 @@ let actions: THREE.AnimationAction[] = [];
 const log = new CommandLog();
 let sensors = new Map<string, CameraInfo>(); // camera sensor sizes from the manifest, by glTF name
 let shotName = 'shot';
+let shotSource = { dcc: '', file: '' }; // where the shot came from, saved with its edits
 let shotCameras: THREE.PerspectiveCamera[] = [];
 
 function applyFrame() {
@@ -97,6 +101,7 @@ function applyFrame() {
   const seconds = frameToSeconds(timeline.frame, timeline.fps);
   for (const action of actions) action.time = seconds;
   mixer.update(0);
+  applySettings(); // after the mixer, since edits go on top of any lens or light animation
 }
 timeline.onChange(applyFrame);
 
@@ -147,25 +152,50 @@ function applyStillPoses() {
   }
 }
 
-/** Lights and cameras: their loaded settings, with any edits on top. */
+/**
+ * Lights and cameras on this frame: their animation (or loaded settings), with any edits on top.
+ * Runs straight after the mixer, so an animated value on the object is this frame's, unedited.
+ */
 function applySettings() {
   if (!registry) return;
   for (const node of registry.nodes) {
     const { object } = node;
-    const look = lightLook(edited, node);
-    if (look && object instanceof THREE.Light) {
-      object.intensity = look.intensity;
-      object.color.set(look.color);
+    const animated = (property: string) => animates(edited.clips, node.gltfName, property);
+    if (object instanceof THREE.Light) {
+      const look = lightLook(edited, node, {
+        intensity: animated('intensity') ? object.intensity : undefined,
+        color: animated('color') ? `#${object.color.getHexString()}` : undefined,
+      });
+      if (look) {
+        object.intensity = look.intensity;
+        object.color.set(look.color);
+      }
     }
     if (object instanceof THREE.PerspectiveCamera) {
       const sensor = sensors.get(node.gltfName) ?? DEFAULT_CAMERA;
-      const fov = cameraFov(edited, node, sensor, object.aspect);
-      if (fov !== null && fov !== object.fov) {
+      const fov = cameraFov(edited, node, sensor, object.aspect, {
+        fov: animated('fov') ? object.fov : undefined,
+      });
+      if (fov !== null) {
         object.fov = fov;
         object.updateProjectionMatrix(); // three.js only rebuilds the lens when asked
       }
     }
   }
+}
+
+/** The glTF's clips, plus one that plays the manifest's lens and light curves (if it has any). */
+function withCurves(clips: THREE.AnimationClip[], manifest: Manifest, root: THREE.Object3D) {
+  const fovFor = (node: string, lens: number) => {
+    const camera = root.getObjectByName(node);
+    const aspect = camera instanceof THREE.PerspectiveCamera ? camera.aspect : 1;
+    return verticalFov(lens, sensors.get(node) ?? DEFAULT_CAMERA, aspect);
+  };
+  const tracks = curveTracks(manifest.curves, manifest.frameStart, manifest.fps, fovFor).filter(
+    // skip objects the .glb doesn't have (glTF has no area lights, for one)
+    (track) => root.getObjectByName(THREE.PropertyBinding.parseTrackName(track.name).nodeName),
+  );
+  return tracks.length > 0 ? [...clips, new THREE.AnimationClip('curves', -1, tracks)] : clips;
 }
 
 /** Hidden objects (and everything parented to them) disappear; everything else shows. */
@@ -194,7 +224,10 @@ function runCommand(text: string): string | null {
 const commandBar = createCommandBar(container, runCommand, (before) =>
   suggest(before, registry?.nodes ?? [], (verb, node) => targetError(verb, node, edited) === null),
 );
-createHistoryPanel(getElement<HTMLElement>('#outliner'), log, (text) => commandBar.setText(text));
+createHistoryPanel(getElement<HTMLElement>('#outliner'), log, (text) => commandBar.setText(text), {
+  save: saveEdits,
+  load: (file) => void loadEdits(file),
+});
 const sidebar = createSidebar(
   getElement<HTMLElement>('#app'),
   getElement<HTMLElement>('#outliner'),
@@ -203,6 +236,45 @@ const sidebar = createSidebar(
 const sidebarButton = createToggleButton(toolbar, 'Sidebar', !sidebar.collapsed, (on) =>
   sidebar.setCollapsed(!on),
 );
+
+// --- Saving and loading edits ---
+/** Downloads the applied commands (with the muted ones marked) as <shot>.rvedits.json. */
+function saveEdits() {
+  if (!registry) {
+    status.textContent = 'Open a shot before saving its edits';
+    return;
+  }
+  const json = JSON.stringify(editsFile(shotName, shotSource, log.appliedEntries), null, 2);
+  saveFile(new Blob([json], { type: 'application/json' }), `${shotName}.rvedits.json`);
+}
+
+/** Replaces the history with a saved edits file, and reports anything it couldn't use. */
+async function loadEdits(file: File) {
+  const currentRegistry = registry;
+  if (!currentRegistry) {
+    status.textContent = '✖ Open a shot before loading its edits';
+    return;
+  }
+  const parse = (text: string) =>
+    parseCommand(text, (query) => currentRegistry.find(query), timeline.frame);
+  const result = readEdits(await file.text(), parse);
+  if ('error' in result) {
+    status.textContent = `✖ ${result.error}`;
+    return;
+  }
+
+  const { shot, entries, skipped } = result.ok;
+  log.load(entries); // -> rebuild()
+  // Commands can read fine but still not apply here (a key that isn't in this shot, say)
+  const context = { registry: currentRegistry, fps: timeline.fps };
+  const failed = replay(original, log.active, context).errors;
+  status.textContent = [
+    `Loaded ${entries.length} edits from ${file.name}`,
+    ...(shot && shot !== shotName ? [`⚠ They were saved from "${shot}", not "${shotName}"`] : []),
+    ...skipped.map((reason) => `⚠ Skipped ${reason}`),
+    ...failed.map((error) => `⚠ ${error}`),
+  ].join('\n');
+}
 
 // --- Burn-in ---
 /** The burn-in for a frame seen through `camera` (null: the free camera). */
@@ -315,7 +387,7 @@ async function openFiles(files: File[]) {
     clips = []; // the old clips belonged to the old mixer
     timeline.configure(shot.manifest.fps, shot.manifest); // before rebuild(), which needs the fps
     original = {
-      clips: shot.gltf.animations,
+      clips: withCurves(shot.gltf.animations, shot.manifest, shot.gltf.scene),
       frameStart: shot.manifest.frameStart,
       frameEnd: shot.manifest.frameEnd,
       poses: {},
@@ -325,6 +397,7 @@ async function openFiles(files: File[]) {
     log.clear(); // -> rebuild() from the new original
 
     shotName = shot.name;
+    shotSource = { dcc: shot.manifest.source.dcc, file: shot.manifest.source.file };
     shotCameras = shot.gltf.cameras.filter(
       (camera): camera is THREE.PerspectiveCamera => camera instanceof THREE.PerspectiveCamera,
     );
@@ -394,6 +467,9 @@ window.addEventListener('keydown', (event) => {
   } else if (ctrl && event.key.toLowerCase() === 'y') {
     event.preventDefault();
     log.redo();
+  } else if (ctrl && event.key.toLowerCase() === 's') {
+    event.preventDefault(); // not the browser's "Save page as"
+    saveEdits();
   } else if (event.code === 'Space') {
     event.preventDefault(); // stop the page from scrolling
     timeline.toggle();

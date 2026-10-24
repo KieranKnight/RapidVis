@@ -3,10 +3,15 @@
 Plain Python with no `bpy`, so it can be tested without Blende.
 The viewer reads this file in `viewer/src/manifest.ts`
 """
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
 MANIFEST_VERSION = 1
+
+# One sampled value per frame, from frame_start to frame_end, for each property of each object:
+# {"shotCam": {"lens": [35.0, 35.2, ...]}, "key_light": {"intensity": [...], "color": [[1, 1, 1], ...]}}
+Curves = dict[str, dict[str, list]]
 
 @dataclass(frozen=True)
 class CameraSensor:
@@ -26,7 +31,25 @@ class SceneInfo:
     frame_end: int
     objects: list[str] = field(default_factory=list)
     cameras: dict[str, CameraSensor] = field(default_factory=dict)
+    curves: Curves = field(default_factory=dict)
 
+def light_intensity(light_type: str, energy: float) -> float:
+    """A light's power in glTF's units, converted the way the exporter's "Unitless" mode does:
+    watts / 4π for point and spot lights, while a sun's strength is used as it is."""
+    return energy if light_type == "SUN" else energy / (4 * math.pi)
+
+def changing(curves: Curves) -> Curves:
+    """Only the curves whose value actually changed. A value that holds still is already in the .glb"""
+    result: Curves = {}
+    for name, properties in curves.items():
+        moving = {
+            prop: values
+            for prop, values in properties.items()
+            if any(value != values[0] for value in values)
+        }
+        if moving:
+            result[name] = moving
+    return result
 
 def build_manifest(info: SceneInfo) -> dict:
     return {
@@ -41,6 +64,8 @@ def build_manifest(info: SceneInfo) -> dict:
             name: {"sensorWidth": sensor.width, "sensorHeight": sensor.height, "sensorFit": sensor.fit}
             for name, sensor in info.cameras.items()
         },
+        # Lens and light animation, which the .glb leaves out
+        "curves": changing(info.curves),
     }
 
 

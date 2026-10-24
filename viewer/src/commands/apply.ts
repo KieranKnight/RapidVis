@@ -179,22 +179,38 @@ export function cameraFov(
   node: SceneNode,
   camera: CameraInfo,
   aspect: number,
+  animated: AnimatedLook = {},
 ): number | null {
   const { fov } = node.restSettings;
   if (fov === undefined) return null;
   const focal = state.settings[node.id]?.focal;
-  return focal === undefined ? fov : verticalFov(focal, camera, aspect);
+  if (focal !== undefined) return verticalFov(focal, camera, aspect); // holds for the whole shot
+  return animated.fov ?? fov;
 }
 
-/** A light's brightness and colour with the edits on top, or null if it isn't a light. */
+/** What an object's animation sets on this frame, for the properties that are animated. */
+export interface AnimatedLook {
+  intensity?: number;
+  color?: string;
+  fov?: number;
+}
+
+/**
+ * A light's brightness and colour on this frame: its animation (or, if it has none, its loaded
+ * look) with the edits on top. Null if it isn't a light.
+ */
 export function lightLook(
   state: ShotState,
   node: SceneNode,
+  animated: AnimatedLook = {},
 ): { intensity: number; color: string } | null {
   const { intensity, color } = node.restSettings;
   if (intensity === undefined || color === undefined) return null;
   const edits = state.settings[node.id] ?? {};
-  return { intensity: intensity * (edits.intensity ?? 1), color: edits.color ?? color };
+  return {
+    intensity: (animated.intensity ?? intensity) * (edits.intensity ?? 1),
+    color: edits.color ?? animated.color ?? color,
+  };
 }
 
 /**
