@@ -1,6 +1,6 @@
 # The `.rvedits.json` format (version 1)
 
-RapidVis saves the edits made to a shot as `<shot>.rvedits.json`. The edits are a list of commands, replayed on top of the original shot. The viewer reads this file back with **Load**, and the Blender add-on applies it to the real scene with **Apply RapidVis edits** (Task 15).
+RapidVis saves the edits made to a shot as `<shot>.rvedits.json`. The edits are a list of commands, replayed on top of the original shot. The viewer reads this file back with **Load**, and the Blender add-on applies it to the real scene with **Apply RapidVis edits**.
 
 ```json
 {
