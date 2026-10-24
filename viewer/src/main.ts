@@ -38,8 +38,8 @@ import { editsFile, readEdits } from './commands/serialize';
 import { animates, keyFrames } from './commands/tracks';
 import { curveTracks } from './curves';
 import { DEFAULT_CAMERA, type CameraInfo, type Manifest } from './manifest';
+import { desktop, saveFile, toFiles, type ShotFile } from './platform';
 import { createBurnInLayer, drawBurnIn } from './ui/burnInLayer';
-import { saveFile } from './ui/download';
 
 function getElement<T extends HTMLElement>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -238,14 +238,18 @@ const sidebarButton = createToggleButton(toolbar, 'Sidebar', !sidebar.collapsed,
 );
 
 // --- Saving and loading edits ---
-/** Downloads the applied commands (with the muted ones marked) as <shot>.rvedits.json. */
-function saveEdits() {
+/** Saves the applied commands (with the muted ones marked) as <shot>.rvedits.json. */
+async function saveEdits() {
   if (!registry) {
     status.textContent = 'Open a shot before saving its edits';
     return;
   }
   const json = JSON.stringify(editsFile(shotName, shotSource, log.appliedEntries), null, 2);
-  saveFile(new Blob([json], { type: 'application/json' }), `${shotName}.rvedits.json`);
+  const savedTo = await saveFile(
+    new Blob([json], { type: 'application/json' }),
+    `${shotName}.rvedits.json`,
+  );
+  if (savedTo) status.textContent = `Saved ${savedTo}`;
 }
 
 /** Replaces the history with a saved edits file, and reports anything it couldn't use. */
@@ -360,6 +364,7 @@ const status = getElement<HTMLParagraphElement>('#status');
 async function openFiles(files: File[]) {
   if (files.length === 0) return;
   status.textContent = 'Loading…';
+  desktop?.shotOpened(files[0]); // so the desktop app saves next to a dropped shot
 
   try {
     const shot = await loadShot(files);
@@ -397,6 +402,7 @@ async function openFiles(files: File[]) {
     log.clear(); // -> rebuild() from the new original
 
     shotName = shot.name;
+    document.title = `${shot.name} – RapidVis`;
     shotSource = { dcc: shot.manifest.source.dcc, file: shot.manifest.source.file };
     shotCameras = shot.gltf.cameras.filter(
       (camera): camera is THREE.PerspectiveCamera => camera instanceof THREE.PerspectiveCamera,
@@ -414,7 +420,22 @@ async function openFiles(files: File[]) {
 }
 
 const fileInput = getElement<HTMLInputElement>('#file-input');
-getElement<HTMLButtonElement>('#open-button').addEventListener('click', () => fileInput.click());
+/** Opens files the desktop app read from disk (a cancelled dialog gives none). */
+function openFromDisk(reading: Promise<ShotFile[]>) {
+  reading.then(
+    (files) => openFiles(toFiles(files)),
+    (error: unknown) => {
+      status.textContent = `✖ ${error instanceof Error ? error.message : String(error)}`;
+    },
+  );
+}
+
+getElement<HTMLButtonElement>('#open-button').addEventListener('click', () => {
+  if (desktop)
+    openFromDisk(desktop.openShot()); // a native Open dialog
+  else fileInput.click();
+});
+if (desktop) openFromDisk(desktop.initialShot()); // `RapidVis.exe shot.glb`
 fileInput.addEventListener('change', () => {
   const files = Array.from(fileInput.files ?? []);
   fileInput.value = ''; // lets you pick the same file again and still trigger 'change'

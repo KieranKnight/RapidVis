@@ -1,6 +1,6 @@
 import type { PerspectiveCamera } from 'three';
 import { CODECS, type MovieCodec } from '../export/settings';
-import { saveFile } from './download';
+import { saveFile } from '../platform';
 
 export interface ExportChoice {
   camera: PerspectiveCamera;
@@ -116,8 +116,8 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
         controller.signal,
       );
       if (result) {
-        saveFile(result.movie, result.fileName);
-        message.textContent = `Saved ${result.fileName}`;
+        const savedTo = await saveFile(result.movie, result.fileName);
+        message.textContent = savedTo ? `Saved ${savedTo}` : 'Not saved';
       } else {
         message.textContent = 'Cancelled';
       }

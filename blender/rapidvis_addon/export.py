@@ -1,10 +1,12 @@
 """Export to RapidVis: writes the scene as a .glb, plus the manifest the viewer needs"""
 import json
+import subprocess
 
 import bpy
-from bpy.props import StringProperty
+from bpy.props import BoolProperty, StringProperty
 from bpy_extras.io_utils import ExportHelper
 
+from .launch import app_problem, launch_command
 from .manifest import (
     CameraSensor,
     Curves,
@@ -13,6 +15,8 @@ from .manifest import (
     light_intensity,
     manifest_path,
 )
+from .preferences import app_path
+
 
 # The glTF settings chosen
 GLTF_SETTINGS = {
@@ -100,6 +104,12 @@ class RAPIDVIS_OT_export(bpy.types.Operator, ExportHelper):
 
     filename_ext = ".glb"  # ExportHelper adds this, and opens the file browser
     filter_glob: StringProperty(default="*.glb", options={"HIDDEN"})
+       
+    open_in_rapidvis: BoolProperty(
+        name="Open in RapidVis",
+        description="Open the exported shot in RapidVis straight away",
+        default=True,
+    )
 
     def execute(self, context):
         try:
@@ -107,9 +117,13 @@ class RAPIDVIS_OT_export(bpy.types.Operator, ExportHelper):
         except (RuntimeError, OSError) as error:  # the exporter failed, or the folder isn't writable
             self.report({"ERROR"}, f"RapidVis export failed: {error}")
             return {"CANCELLED"}
-        self.report({"INFO"}, f"Exported {bpy.path.basename(self.filepath)} and {bpy.path.basename(manifest)}")
+        exported = f"Exported {bpy.path.basename(self.filepath)} and {bpy.path.basename(manifest)}"
+        problem = open_in_rapidvis(context, self.filepath) if self.open_in_rapidvis else None
+        if problem:  # the export itself worked, so this is only a warning
+            self.report({"WARNING"}, f"{exported}, but RapidVis didn't open. {problem}")
+        else:
+            self.report({"INFO"}, exported)
         return {"FINISHED"}
-
 
 
 class RAPIDVIS_PT_panel(bpy.types.Panel):
@@ -143,3 +157,14 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
 
+def open_in_rapidvis(context: bpy.types.Context, glb_path: str) -> str | None:
+    """Starts RapidVis on the shot, without waiting for it. Returns what went wrong, if anything."""
+    app = app_path(context)
+    problem = app_problem(app)
+    if problem:
+        return problem
+    try:
+        subprocess.Popen(launch_command(app, glb_path))  # Blender carries on while RapidVis runs
+    except OSError as error:  # not a program, or not allowed to run
+        return str(error)
+    return None
