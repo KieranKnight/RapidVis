@@ -120,6 +120,8 @@ class RAPIDVIS_PT_panel(bpy.types.Panel):
 
     def draw(self, context):
         self.layout.operator(RAPIDVIS_OT_export.bl_idname, icon="EXPORT")
+        self.layout.operator("rapidvis.apply_edits", icon="IMPORT")
+
 
 
 def menu_item(self, context):

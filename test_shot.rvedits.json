@@ -9,13 +9,21 @@
     {
       "verb": "retime",
       "target": "cube",
-      "factor": 20,
-      "muted": true
+      "factor": 20
+    },
+    {
+      "verb": "scale-all",
+      "target": "ground",
+      "by": [
+        10,
+        10,
+        10
+      ]
     },
     {
       "verb": "color",
       "target": "key_light",
-      "color": "#123456"
+      "color": "#559988"
     }
   ]
 }
