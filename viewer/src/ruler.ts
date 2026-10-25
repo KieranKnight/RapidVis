@@ -28,6 +28,18 @@ export function ticks(start: number, end: number, step: number): number[] {
 }
 
 /**
+ * The frame numbers to label: always the first and last frame, so the range is never a guess,
+ * plus the nice steps between them that don't crowd either end
+ */
+export function rulerLabels(start: number, end: number, width: number, minGap = 48): number[] {
+  const pixelsPerFrame = width / Math.max(end - start, 1);
+  const roomy = (frame: number) =>
+    (frame - start) * pixelsPerFrame >= minGap && (end - frame) * pixelsPerFrame >= minGap;
+  const between = ticks(start, end, tickStep(start, end, width, minGap)).filter(roomy);
+  return end > start ? [start, ...between, end] : [start];
+}
+
+/**
  * The first key after `frame` (direction 1) or before it (-1), or null if there isn't one
  * Keys can sit between frames after a retime, so they're rounded to whole frames first
  */

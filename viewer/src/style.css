@@ -1,291 +1,307 @@
+/* Theme tokens, from the Design C handover. Dark is the default; [data-theme='light'] swaps
+   them all. Everything below uses these, never a raw colour. */
 :root {
-  --bg: #1e1f22;
-  --panel: #2b2d31;
-  --border: #3c3f45;
-  --text: #d6d7da;
-  font-family: system-ui, sans-serif;
+  color-scheme: dark; /* native controls and scrollbars follow the theme too */
+  --bg: #1c1d21;
+  --floor: #2a2c31;
+  --grid: #34363c;
+  --text: #eceef2;
+  --muted: #a5a9b2;
+  --muted2: #c9ccd3;
+  --link: #a9c4ff;
+  --card: rgba(42, 44, 50, 0.94);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
+  --divider: #3a3d44;
+  --chip: #3a3d44;
+  --swatch-border: #4a4d55;
+  --key: #e3a256;
+  --primary-bg: #eceef2;
+  --primary-fg: #1c1d21;
+  --accent: #8fb3ff;
+  --accent-fg: #121317;
+  --tl-bg: #0f1013;
+  --tl-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --track-bg: #24252a;
+  --track-fill: #34363c;
+  --danger: #ff8a80; /* not in the handover: error text */
+
+  /* Fixed: the timeline is dark in both themes */
+  --tl-text: #f2f1ee;
+  --tl-muted: #b3b1ab;
+  --tl-key: #ffd29a;
+  --tl-key-other: #8f8d87;
+  --tl-play: #ffffff;
+  --tl-play-fg: #1b1c1f;
+
+  /* Fixed: scene list dots, by node type (a light's dot shows its own colour) */
+  --dot-group: #c9a23c;
+  --dot-mesh: #4a74a8;
+  --dot-camera: #7d5cc4;
+  --dot-light: #ffd29a;
+
+  --font-ui: 'Manrope Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', Consolas, monospace;
+  font: 13px var(--font-ui);
   color: var(--text);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #e6e4df;
+  --floor: #d3d0c9;
+  --grid: #c4c0b8;
+  --text: #1b1c1f;
+  --muted: #5c5f66;
+  --muted2: #45484e;
+  --link: #2448b8;
+  --card: rgba(255, 255, 255, 0.94);
+  --card-shadow: 0 1px 2px rgba(27, 28, 31, 0.08), 0 10px 30px rgba(27, 28, 31, 0.08);
+  --divider: #ebe9e4;
+  --chip: #efede8;
+  --swatch-border: #d9d6cf;
+  --key: #c4661f;
+  --primary-bg: #1b1c1f;
+  --primary-fg: #ffffff;
+  --accent: #2f5bd3;
+  --accent-fg: #ffffff;
+  --tl-bg: #1b1c1f;
+  --tl-shadow: 0 10px 30px rgba(27, 28, 31, 0.25);
+  --track-bg: #2b2c30;
+  --track-fill: #3a3b40;
+  --danger: #b3261e;
+}
+
+/* Fade the colours while switching theme (only then, so hovers stay instant) */
+.theme-changing,
+.theme-changing * {
+  transition:
+    background-color 0.25s,
+    color 0.25s,
+    border-color 0.25s;
 }
 
 * {
   box-sizing: border-box;
 }
+button,
+input,
+select {
+  font-family: inherit;
+}
 html,
 body {
   margin: 0;
   height: 100%;
+  overflow: hidden;
   background: var(--bg);
 }
 
 #app {
-  display: grid;
-  grid-template-columns: var(--sidebar-width, 240px) 1fr;
-  grid-template-rows: 1fr 56px;
-  grid-template-areas:
-    'outliner viewport'
-    'timeline timeline';
+  position: relative;
   height: 100vh;
 }
-#app.sidebar-collapsed {
-  grid-template-columns: 0 1fr;
-}
-#app.sidebar-collapsed #outliner {
-  display: none;
-}
 
-#outliner {
-  grid-area: outliner;
-  position: relative; /* for its resize handle */
-  background: var(--panel);
-  border-right: 1px solid var(--border);
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-}
-
+/* --- The 3D view fills the whole window, behind everything --- */
 #viewport {
-  grid-area: viewport;
-  position: relative;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
-  min-width: 0;
-  min-height: 0;
 }
-
-#timeline {
-  grid-area: timeline;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-  padding: 8px;
-}
-
 #viewport canvas {
   display: block;
 }
-
-#open-button {
-  width: 100%;
-  padding: 6px 10px;
-  background: #3a6fd8;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-#open-button:hover {
-  background: #4a7fe8;
-}
-
-#status {
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: pre-line;
-  opacity: 0.8;
-}
-
 #viewport.drag-over {
-  outline: 2px dashed #3a6fd8;
+  outline: 2px dashed var(--accent);
   outline-offset: -6px;
 }
 
-#timeline {
+/* --- Everything else floats over it. The overlay lets clicks through to the viewport; the
+   cards and buttons on it take them back --- */
+.overlay {
+  position: relative;
+  height: 100%;
+  padding: 16px;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: none;
+}
+.card,
+.shot-chip,
+.command-bar,
+.header-buttons button,
+.header-buttons select,
+#timeline {
+  pointer-events: auto;
+}
+
+.card {
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  border-radius: 14px;
+}
+
+/* T hides the cards for a clean review; the timeline stays to scrub with */
+#app.cards-hidden .header,
+#app.cards-hidden .middle {
+  visibility: hidden;
+}
+
+/* --- Header: shot chip, command bar, buttons --- */
+.header {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
 
-.play-button {
-  width: 36px;
-  height: 32px;
-  font-size: 16px;
-  background: #3a3d44;
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.ruler {
-  position: relative;
-  flex: 1;
-  height: 36px;
-  overflow: hidden;
-  background: #1f2023;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  cursor: ew-resize;
-  user-select: none;
-  touch-action: none; /* a finger drag scrubs instead of scrolling */
-}
-
-.ruler-track {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 8px;
-  right: 8px;
-}
-
-.ruler-tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  padding: 2px 0 0 3px;
-  border-left: 1px solid #3a3d44;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  color: #8a8d93;
-}
-
-.ruler-keys {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 6px;
-  height: 8px;
-}
-
-.ruler-key {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #ffc040;
-  border-radius: 1px;
-  transform: translateX(-50%) rotate(45deg); /* centred on its frame, turned into a diamond */
-}
-
-.ruler-playhead {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  margin-left: -1px;
-  background: #3a6fd8;
-  pointer-events: none;
-}
-
-.frame-label {
-  min-width: 72px;
-  text-align: right;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-.camera-select {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 1;
-  padding: 4px 8px;
-  font-size: 13px;
-  color: var(--text);
-  background: rgba(30, 31, 34, 0.85);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
-
-#status {
-  margin: 0;
-}
-
-.outliner-list {
-  flex: 1;
-  min-height: 0; /* let it shrink (and scroll) when the history grows */
-  overflow-y: auto;
-  font-size: 13px;
-}
-
-.outliner-row {
-  padding: 3px 8px;
-  border-radius: 3px;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  user-select: none;
-}
-
-.outliner-row:hover {
-  background: #34373c;
-}
-.outliner-row.selected {
-  background: #3a6fd8;
-  color: white;
-}
-
-.outliner-row.hidden-node {
-  opacity: 0.4;
-  font-style: italic;
-}
-
-.viewport-toolbar {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1;
+.shot-chip {
   display: flex;
-  gap: 6px;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  border-radius: 12px;
+}
+#shot-name {
+  font-weight: 700;
+}
+#shot-info {
+  font: 12px var(--font-mono);
+  color: var(--muted);
+}
+#shot-info:empty {
+  display: none;
+}
+
+.command-slot {
+  flex: 1 1 320px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.header-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.header-tools {
+  display: contents; /* its buttons line up as if they were header-buttons' own */
 }
 
 .toggle-button,
-.export-button {
-  padding: 4px 10px;
+.export-button,
+.theme-toggle,
+.camera-select,
+.open-button {
+  height: 40px;
+  padding: 0 14px;
   font-size: 13px;
+  font-weight: 600;
   color: var(--text);
-  background: rgba(30, 31, 34, 0.85);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  border: none;
+  border-radius: 10px;
   cursor: pointer;
 }
-
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+}
+.camera-select {
+  padding: 0 10px;
+}
 .toggle-button[aria-pressed='true'] {
-  color: white;
-  background: #3a6fd8;
-  border-color: #3a6fd8;
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+.open-button {
+  color: var(--primary-fg);
+  background: var(--primary-bg);
+  box-shadow: none;
+}
+.open-button:hover {
+  opacity: 0.85;
 }
 
-.outliner-arrow {
-  display: inline-block;
-  width: 14px;
-  text-align: center;
-  opacity: 0.7;
-}
-
-.outliner-arrow:not(:empty) {
-  cursor: pointer;
-}
-.outliner-arrow:not(:empty):hover {
-  opacity: 1;
-}
-
+/* --- Command bar --- */
 .command-bar {
+  position: relative; /* for what drops down below it */
+}
+
+.command-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  border-radius: 12px;
+}
+.command-field:focus-within {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    var(--card-shadow);
+}
+
+.command-icon {
+  flex: none;
+  color: var(--muted);
+}
+
+.command-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  font: 13px var(--font-mono);
+  color: var(--text);
+  background: none;
+  border: none;
+  outline: none;
+}
+.command-input::placeholder {
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.command-hint {
+  padding: 2px 7px;
+  font: 11px var(--font-mono);
+  color: var(--muted2);
+  background: var(--chip);
+  border-radius: 4px;
+}
+
+.command-below {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  z-index: 1;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
 }
 
-.command-input {
-  width: 100%;
-  padding: 6px 10px;
-  font:
-    13px ui-monospace,
-    Consolas,
-    monospace;
-  color: var(--text);
-  background: rgba(30, 31, 34, 0.85);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+.command-message {
+  padding: 4px 10px;
+  font: 12px var(--font-mono);
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  border-radius: 8px;
 }
-.command-input:focus {
-  outline: none;
-  border-color: #3a6fd8;
+.command-message:empty {
+  display: none;
+}
+.command-message.error {
+  color: var(--danger);
 }
 
 .command-menu {
@@ -295,13 +311,10 @@ body {
   margin: 0;
   padding: 4px 0;
   list-style: none;
-  font:
-    12px ui-monospace,
-    Consolas,
-    monospace;
-  background: rgba(30, 31, 34, 0.95);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  font: 12px var(--font-mono);
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  border-radius: 12px;
 }
 .command-menu:empty {
   display: none;
@@ -310,73 +323,305 @@ body {
 .command-menu-row {
   display: flex;
   gap: 12px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   white-space: nowrap;
   cursor: pointer;
 }
 .command-menu-row.selected {
-  background: #3a6fd8;
+  color: var(--accent-fg);
+  background: var(--accent);
 }
 
 .command-menu-label {
   min-width: 84px; /* lines the details up, since every command name fits */
-  color: var(--text);
 }
 
 .command-menu-detail {
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #8a8d93;
+  color: var(--muted);
 }
 .command-menu-row.selected .command-menu-detail {
-  color: #dfe6f5;
+  color: var(--accent-fg);
 }
 
-.command-message {
-  padding: 2px 8px;
-  font:
-    12px ui-monospace,
-    Consolas,
-    monospace;
-  background: rgba(30, 31, 34, 0.85);
-  border-radius: 4px;
+/* Read out by screen readers, but not drawn */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
-.command-message:empty {
+
+/* --- Middle row: the scene card on the left (the properties card joins it on the right) --- */
+.middle {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.scene-card {
+  flex: 0 1 230px;
+  min-width: 0;
+  max-height: 100%; /* past the window's height, its lists scroll */
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.card-label,
+.history h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.card-label {
+  padding: 0 8px 6px;
+}
+
+#status {
+  margin: 0 8px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-line;
+  color: var(--muted);
+}
+#status:empty {
   display: none;
 }
-.command-message.error {
-  color: #ff8a80;
+
+.outliner-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
+.outliner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.outliner-row:hover {
+  background: var(--chip);
+}
+.outliner-row.selected {
+  font-weight: 600;
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+.outliner-row.hidden-node {
+  opacity: 0.4;
+  font-style: italic;
+}
+
+.outliner-arrow {
+  flex: none;
+  width: 10px;
+  margin-right: -4px;
+  text-align: center;
+  opacity: 0.7;
+}
+.outliner-arrow:not(:empty) {
+  cursor: pointer;
+}
+.outliner-arrow:not(:empty):hover {
+  opacity: 1;
+}
+
+.outliner-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.type-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.type-dot.group {
+  background: var(--dot-group);
+}
+.type-dot.mesh {
+  background: var(--dot-mesh);
+}
+.type-dot.camera {
+  background: var(--dot-camera);
+}
+.type-dot.light {
+  background: var(--dot-light); /* outliner.ts swaps in the light's own colour */
+}
+
+.key-diamond {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+  background: var(--key);
+  transform: rotate(45deg);
+}
+.outliner-row.selected .key-diamond {
+  background: var(--accent-fg);
+}
+
+/* --- Properties: the selected object's card, on the right --- */
+.properties-card {
+  flex: 0 1 280px;
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+.properties-card[hidden] {
+  display: none; /* the display above would otherwise beat the hidden attribute */
+}
+
+.props-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.props-caption {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.props-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.props-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.props-label {
+  font-weight: 600;
+}
+.props-readout {
+  font: 12px var(--font-mono);
+  color: var(--muted2);
+}
+
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+.swatch {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--swatch-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.swatch[aria-pressed='true'] {
+  border: 2px solid var(--text);
+}
+
+.props-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.props-lens {
+  font: 12px var(--font-mono);
+  color: var(--muted2);
+}
+.props-number {
+  width: 72px;
+  padding: 6px 8px;
+  font: 13px var(--font-mono);
+  color: var(--text);
+  background: var(--chip);
+  border: none;
+  border-radius: 8px;
+}
+
+.props-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--divider);
+}
+.props-channel {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.props-channel-name {
+  color: var(--muted);
+}
+
+/* --- Changes: the scene card's footer --- */
 .history {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: none;
   min-height: 0;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--divider);
 }
 
-.history h2 {
-  margin: 0 0 4px;
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+}
+.history-header h2 {
+  margin-right: auto; /* pushes the buttons to the right */
+}
+
+.history-action {
+  padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.6;
+  color: var(--text);
+  background: var(--chip);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.history-action:hover {
+  background: var(--swatch-border);
 }
 
 .history-list {
-  --row-height: 22px;
-  max-height: calc(var(--row-height) * 5); /* 5 rows, then it scrolls */
+  --row-height: 24px;
+  max-height: calc(var(--row-height) * 6); /* 6 rows, then it scrolls */
   margin: 0;
   padding: 0;
   list-style: none;
   overflow-y: auto;
-  font:
-    12px ui-monospace,
-    Consolas,
-    monospace;
+  font: 12px var(--font-mono);
+  color: var(--muted2);
 }
 
 .history-row {
@@ -385,18 +630,17 @@ body {
   gap: 6px;
   height: var(--row-height);
   padding: 0 4px 0 8px;
-  border-radius: 3px;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none; /* double-click shouldn't highlight the text */
 }
 .history-row:hover {
-  background: #34373c;
+  background: var(--chip);
 }
 .history-row.current {
-  color: white;
-  background: #3a6fd8;
+  color: var(--accent-fg);
+  background: var(--accent);
 }
-
 .history-row.undone {
   opacity: 0.4;
   text-decoration: line-through;
@@ -408,7 +652,6 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .history-row.muted .history-text {
   font-style: italic;
   opacity: 0.5;
@@ -431,44 +674,134 @@ body {
   font-weight: 700;
 }
 .history-mute[aria-pressed='true'] {
-  color: #ffc040; /* stays lit while muted, so it's easy to find again */
+  color: var(--key); /* stays lit while muted, so it's easy to find again */
   opacity: 1;
 }
 .history-remove:hover {
-  color: #ff8a80;
+  color: var(--danger);
   opacity: 1;
 }
 
-.splitter {
-  position: absolute;
-  z-index: 2; /* above the viewport it overlaps */
-  touch-action: none;
-}
-.splitter-x {
-  top: 0;
-  bottom: 0;
-  right: -4px; /* centred on the sidebar's edge */
-  width: 8px;
-  cursor: col-resize;
-}
-.splitter-y {
-  top: -4px; /* centred on the line above the history */
-  left: 0;
-  right: 0;
-  height: 8px;
-  cursor: row-resize;
-}
-.splitter:hover,
-.splitter.dragging {
-  background: rgba(58, 111, 216, 0.5);
+/* --- Timeline: a dark pill along the bottom, dark in both themes --- */
+#timeline {
+  --track-inset: 13px; /* the track's rounded ends: keys and the playhead stay inside them */
+  align-self: center;
+  width: min(920px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  color: var(--tl-text);
+  background: var(--tl-bg);
+  box-shadow: var(--tl-shadow);
+  border-radius: 16px;
 }
 
+.play-button {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--tl-play-fg);
+  background: var(--tl-play);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.ruler {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none; /* a finger drag scrubs instead of scrolling */
+}
+
+.ruler-labels {
+  position: relative;
+  height: 14px;
+  margin: 0 var(--track-inset); /* lined up with the track below */
+}
+
+.ruler-label {
+  position: absolute;
+  transform: translateX(-50%); /* centred on its frame */
+  font: 11px/14px var(--font-mono);
+  color: var(--tl-muted);
+}
+
+.ruler-bar {
+  position: relative;
+  height: 26px;
+  background: var(--track-bg);
+  border-radius: 13px;
+}
+
+.ruler-track {
+  position: absolute;
+  inset: 0 var(--track-inset);
+}
+
+.ruler-played {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--track-inset)); /* from the bar's rounded left end */
+  background: var(--track-fill);
+  border-radius: 13px 0 0 13px;
+}
+
+.ruler-key {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  background: var(--tl-key-other);
+  transform: translate(-50%, -50%) rotate(45deg); /* centred on its frame, turned into a diamond */
+}
+.ruler-key.picked {
+  background: var(--tl-key);
+}
+
+.ruler-playhead {
+  position: absolute;
+  top: -5px;
+  bottom: -5px; /* overhangs the track, so it's easy to see and grab */
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--tl-play);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.frame-counter {
+  flex: none;
+  min-width: 72px;
+  text-align: right;
+  font: 500 16px var(--font-mono);
+  font-variant-numeric: tabular-nums; /* digits keep the same width, so it doesn't jiggle */
+}
+.frame-total {
+  color: var(--tl-muted);
+}
+.frame-seconds {
+  font: 11px var(--font-mono);
+  color: var(--tl-muted);
+}
+
+/* --- Export dialog --- */
 .export-dialog {
   width: 340px;
   padding: 16px;
   color: var(--text);
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--card);
+  border: 1px solid var(--divider);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -490,7 +823,7 @@ body {
   padding: 3px 6px;
   color: var(--text);
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--divider);
   border-radius: 4px;
 }
 .export-dialog progress {
@@ -514,15 +847,15 @@ body {
 .export-buttons button {
   padding: 5px 14px;
   color: var(--text);
-  background: #3a3d44;
-  border: 1px solid var(--border);
+  background: var(--chip);
+  border: 1px solid var(--divider);
   border-radius: 4px;
   cursor: pointer;
 }
 .export-buttons .export-start {
-  color: white;
-  background: #3a6fd8;
-  border-color: #3a6fd8;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 .export-buttons button:disabled {
   opacity: 0.5;
@@ -535,27 +868,4 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none; /* clicks go through to the 3D view */
-}
-
-.history-header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
-}
-.history-header h2 {
-  margin: 0 auto 0 0; /* pushes the buttons to the right */
-}
-
-.history-action {
-  padding: 1px 8px;
-  font-size: 11px;
-  color: var(--text);
-  background: #3a3d44;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  cursor: pointer;
-}
-.history-action:hover {
-  background: #45484f;
 }

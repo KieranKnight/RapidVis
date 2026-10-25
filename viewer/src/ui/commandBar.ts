@@ -7,6 +7,10 @@ export type RunCommand = (text: string) => string | null;
 /** What to offer for the text before the cursor. */
 export type Suggest = (before: string) => Suggestion[];
 
+// A 16px terminal prompt: a chevron and an underscore
+const PROMPT_ICON =
+  '<svg class="command-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-5-6-5M12 19h8"/></svg>';
+
 export interface CommandBar {
   focus(): void;
   setText(text: string): void;
@@ -25,12 +29,32 @@ export function createCommandBar(root: HTMLElement, run: RunCommand, suggest: Su
 
   const input = document.createElement('input');
   input.type = 'text';
+  input.id = 'command-input';
   input.className = 'command-input';
   input.placeholder = 'Type a command, or / to see them all';
   input.spellcheck = false;
   input.autocomplete = 'off';
 
-  form.append(menu, message, input);
+  const label = document.createElement('label');
+  label.className = 'visually-hidden'; // for screen readers: the icon says it for everyone else
+  label.htmlFor = input.id;
+  label.textContent = 'Command';
+
+  const hint = document.createElement('kbd');
+  hint.className = 'command-hint';
+  hint.textContent = '/';
+  hint.title = 'Press / anywhere to type a command';
+
+  // The input and its decorations, then what drops down below it: the result, and suggestions
+  const field = document.createElement('div');
+  field.className = 'command-field';
+  field.innerHTML = PROMPT_ICON;
+  field.append(label, input, hint);
+  const below = document.createElement('div');
+  below.className = 'command-below';
+  below.append(message, menu);
+
+  form.append(field, below);
   root.append(form);
 
   const show = (text: string, isError: boolean) => {

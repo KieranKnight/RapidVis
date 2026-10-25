@@ -12,6 +12,8 @@ import { CommandLog } from './commands/log';
 import { parseCommand } from './commands/parse';
 import { createHistoryPanel } from './ui/historyPanel';
 
+import '@fontsource-variable/jetbrains-mono';
+import '@fontsource-variable/manrope';
 import { suggest } from './commands/complete';
 import { recordMovie } from './export/movie';
 import { movieFileName, movieSize } from './export/settings';
@@ -26,7 +28,6 @@ import { createCommandBar } from './ui/commandBar';
 import { droppedFiles } from './ui/droppedFiles';
 import { createExportDialog, type RunExport } from './ui/exportDialog';
 import { createOutliner } from './ui/outliner';
-import { createSidebar } from './ui/sidebar';
 import { createTimelineBar } from './ui/timelineBar';
 import { createToggleButton } from './ui/toggleButton';
 import { createViewport } from './viewport';
@@ -39,7 +40,11 @@ import { animates, keyFrames } from './commands/tracks';
 import { curveTracks } from './curves';
 import { DEFAULT_CAMERA, type CameraInfo, type Manifest } from './manifest';
 import { desktop, saveFile, toFiles, type ShotFile } from './platform';
+import { channels } from './properties';
+import { saveTheme, sceneColors, showTheme, startingTheme } from './theme';
 import { createBurnInLayer, drawBurnIn } from './ui/burnInLayer';
+import { createPropertiesCard } from './ui/propertiesCard';
+import { createThemeToggle } from './ui/themeToggle';
 
 function getElement<T extends HTMLElement>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -48,25 +53,40 @@ function getElement<T extends HTMLElement>(selector: string): T {
 }
 
 // --- Components ---
+const app = getElement<HTMLElement>('#app');
 const container = getElement<HTMLElement>('#viewport');
 const viewport = createViewport(container);
-let viewedCamera: THREE.PerspectiveCamera | null = null; // the shot camera looked through, if any
-const cameraSelect = createCameraSelect(container, (camera) => {
-  viewedCamera = camera;
-  viewport.setViewCamera(camera);
+const headerTools = getElement<HTMLElement>('#header-tools'); // the header buttons before Open shot
+
+// --- Theme ---
+const theme = startingTheme();
+showTheme(theme);
+viewport.setColors(sceneColors());
+createThemeToggle(headerTools, theme, (next) => {
+  showTheme(next, true);
+  saveTheme(next);
+  viewport.setColors(sceneColors()); // after showTheme, so it reads the new tokens
 });
 
-const toolbar = document.createElement('div');
-toolbar.className = 'viewport-toolbar';
-container.append(toolbar);
-const overlaysButton = createToggleButton(toolbar, 'Overlays', true, (on) =>
+const overlaysButton = createToggleButton(headerTools, 'Overlays', true, (on) =>
   viewport.setOverlays(on),
 );
 
 const burnInLayer = createBurnInLayer(container);
-const burnInButton = createToggleButton(toolbar, 'Burn-in', burnInLayer.visible, (on) =>
+const burnInButton = createToggleButton(headerTools, 'Burn-in', burnInLayer.visible, (on) =>
   burnInLayer.setVisible(on),
 );
+
+let viewedCamera: THREE.PerspectiveCamera | null = null; // the shot camera looked through, if any
+const cameraSelect = createCameraSelect(headerTools, (camera) => {
+  viewedCamera = camera;
+  viewport.setViewCamera(camera);
+});
+
+/** T: hides the cards for a clean look at the shot (the timeline stays, to scrub with). */
+function toggleCards() {
+  app.classList.toggle('cards-hidden');
+}
 
 const timeline = new Timeline();
 const timelineBar = createTimelineBar(getElement<HTMLElement>('#timeline'), timeline);
@@ -126,16 +146,23 @@ function rebuild() {
   applyVisibility();
   applySettings();
   timeline.setRange(edited);
+  shotInfo.textContent = `${timeline.fps} fps · ${timeline.frameStart}–${timeline.frameEnd}`;
+  outliner.setAnimated(
+    registry.nodes
+      .filter((node) => keyFrames(edited.clips, node.gltfName, timeline.fps).length > 0)
+      .map((node) => node.id),
+  );
   updateKeys();
 }
 
 let shownKeys: number[] = []; // what the ruler shows, and what ↑/↓ jump between
 
-/** Key markers: the selected object's keys, or every key when nothing is selected. */
+/** Key markers: every key, with the selected object's picked out (all of them, if nothing is). */
 function updateKeys() {
   const node = selection.selected;
-  shownKeys = keyFrames(edited.clips, node ? node.gltfName : null, timeline.fps);
-  timelineBar.setKeys(shownKeys);
+  const allKeys = keyFrames(edited.clips, null, timeline.fps);
+  shownKeys = node ? keyFrames(edited.clips, node.gltfName, timeline.fps) : allKeys;
+  timelineBar.setKeys(allKeys, shownKeys);
 }
 selection.onChange(updateKeys);
 
@@ -221,21 +248,38 @@ function runCommand(text: string): string | null {
   log.push(parsed.ok); // -> rebuild()
   return null;
 }
-const commandBar = createCommandBar(container, runCommand, (before) =>
-  suggest(before, registry?.nodes ?? [], (verb, node) => targetError(verb, node, edited) === null),
+const commandBar = createCommandBar(
+  getElement<HTMLElement>('#command-slot'),
+  runCommand,
+  (before) =>
+    suggest(
+      before,
+      registry?.nodes ?? [],
+      (verb, node) => targetError(verb, node, edited) === null,
+    ),
 );
 createHistoryPanel(getElement<HTMLElement>('#outliner'), log, (text) => commandBar.setText(text), {
   save: saveEdits,
   load: (file) => void loadEdits(file),
 });
-const sidebar = createSidebar(
-  getElement<HTMLElement>('#app'),
-  getElement<HTMLElement>('#outliner'),
-  getElement<HTMLElement>('.history'),
-);
-const sidebarButton = createToggleButton(toolbar, 'Sidebar', !sidebar.collapsed, (on) =>
-  sidebar.setCollapsed(!on),
-);
+
+const propertiesCard = createPropertiesCard(getElement<HTMLElement>('#properties'), selection, {
+  run(command) {
+    const error = runCommand(formatCommand(command)); // the same path as typing it
+    if (error) status.textContent = `✖ ${error}`;
+  },
+  settings: (node) => edited.settings[node.id] ?? {},
+  lens: (node) =>
+    node.object instanceof THREE.PerspectiveCamera
+      ? focalLength(
+          node.object.fov,
+          sensors.get(node.gltfName) ?? DEFAULT_CAMERA,
+          node.object.aspect,
+        )
+      : null,
+  channels: (node) => channels(edited.clips, node.gltfName, timeline.fps),
+});
+log.onChange(() => propertiesCard.refresh()); // after rebuild(), so it shows the edited values
 
 // --- Saving and loading edits ---
 /** Saves the applied commands (with the muted ones marked) as <shot>.rvedits.json. */
@@ -349,7 +393,7 @@ exportButton.addEventListener('click', () =>
     frameEnd: timeline.frameEnd,
   }),
 );
-toolbar.append(exportButton);
+headerTools.append(exportButton);
 
 viewport.start((deltaSeconds) => {
   timeline.tick(deltaSeconds);
@@ -360,6 +404,8 @@ viewport.start((deltaSeconds) => {
 
 // --- Loading ---
 const status = getElement<HTMLParagraphElement>('#status');
+const shotNameLabel = getElement<HTMLElement>('#shot-name');
+const shotInfo = getElement<HTMLElement>('#shot-info'); // fps and frame range, kept up to date by rebuild()
 
 async function openFiles(files: File[]) {
   if (files.length === 0) return;
@@ -402,6 +448,7 @@ async function openFiles(files: File[]) {
     log.clear(); // -> rebuild() from the new original
 
     shotName = shot.name;
+    shotNameLabel.textContent = shot.name;
     document.title = `${shot.name} – RapidVis`;
     shotSource = { dcc: shot.manifest.source.dcc, file: shot.manifest.source.file };
     shotCameras = shot.gltf.cameras.filter(
@@ -409,11 +456,7 @@ async function openFiles(files: File[]) {
     );
     cameraSelect.setCameras(shotCameras);
 
-    const { fps, frameStart, frameEnd } = shot.manifest;
-    status.textContent = [
-      `${shot.name}: ${fps} fps, frames ${frameStart}–${frameEnd}`,
-      ...shot.warnings.map((warning) => `⚠ ${warning}`),
-    ].join('\n');
+    status.textContent = shot.warnings.map((warning) => `⚠ ${warning}`).join('\n'); // the chip has the rest
   } catch (error) {
     status.textContent = `✖ ${error instanceof Error ? error.message : String(error)}`;
   }
@@ -512,7 +555,7 @@ window.addEventListener('keydown', (event) => {
   } else if (event.code === 'KeyB') {
     burnInButton.toggle();
   } else if (event.code === 'KeyT') {
-    sidebarButton.toggle();
+    toggleCards();
   } else if (event.key === '/') {
     event.preventDefault(); // the bar gets its own /, which also opens the menu
     commandBar.setText('/');

@@ -1,17 +1,13 @@
+import { Light } from 'three';
 import { ancestorIds, descendantIds, parentIds, visibleNodes } from '../outlinerTree';
-import type { NodeType, SceneNode, SceneRegistry } from '../registry';
+import type { SceneNode, SceneRegistry } from '../registry';
 import type { Selection } from '../selection';
-
-const ICONS: Record<NodeType, string> = {
-  mesh: '🔷',
-  camera: '🎥',
-  light: '💡',
-  group: '📁',
-};
 
 export interface Outliner {
   setRegistry(registry: SceneRegistry | null): void;
   setHidden(ids: readonly string[]): void;
+  /** The objects with keys, which get a key diamond. */
+  setAnimated(ids: readonly string[]): void;
 }
 
 export function createOutliner(root: HTMLElement, selection: Selection): Outliner {
@@ -25,6 +21,7 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
   const rows = new Map<string, HTMLElement>();
 
   let hidden = new Set<string>();
+  let animated = new Set<string>();
 
   /** Hidden itself, or inside a hidden group. */
   function isHidden(id: string): boolean {
@@ -45,7 +42,7 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
   function createRow(node: SceneNode): HTMLElement {
     const row = document.createElement('div');
     row.className = 'outliner-row';
-    row.style.paddingLeft = `${4 + node.depth * 16}px`;
+    row.style.paddingLeft = `${8 + node.depth * 18}px`;
     row.title = `${node.type}: ${node.id}${hidden.has(node.id) ? ' (hidden)' : ''}`;
     row.classList.toggle('hidden-node', isHidden(node.id));
 
@@ -60,10 +57,21 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
       });
     }
 
-    const label = document.createElement('span');
-    label.textContent = `${ICONS[node.type]} ${node.id}`;
+    const dot = document.createElement('span');
+    dot.className = `type-dot ${node.type}`; // style.css colours it by type
+    if (node.object instanceof Light) dot.style.background = `#${node.object.color.getHexString()}`;
 
-    row.append(arrow, label);
+    const label = document.createElement('span');
+    label.className = 'outliner-name';
+    label.textContent = node.id;
+
+    row.append(arrow, dot, label);
+    if (animated.has(node.id)) {
+      const key = document.createElement('span');
+      key.className = 'key-diamond';
+      key.title = 'Animated';
+      row.append(key);
+    }
     row.addEventListener('click', () => selection.select(node));
     return row;
   }
@@ -81,7 +89,11 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
 
   function renderSelection() {
     const selectedId = selection.selected?.id;
-    for (const [id, row] of rows) row.classList.toggle('selected', id === selectedId);
+    for (const [id, row] of rows) {
+      row.classList.toggle('selected', id === selectedId);
+      if (id === selectedId) row.setAttribute('aria-current', 'true');
+      else row.removeAttribute('aria-current');
+    }
     if (selectedId) rows.get(selectedId)?.scrollIntoView({ block: 'nearest' });
   }
 
@@ -108,6 +120,10 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
     },
     setHidden(ids) {
       hidden = new Set(ids);
+      renderRows();
+    },
+    setAnimated(ids) {
+      animated = new Set(ids);
       renderRows();
     },
   };

@@ -7,13 +7,30 @@
   </head>
   <body>
     <div id="app">
-      <aside id="outliner">
-        <button id="open-button" type="button">Open shot...</button>
-        <input id="file-input" type="file" accept=".glb,.json" multiple hidden />
-        <p id="status">Drop a shot folder (or a .glb and its manifest) anywhere</p>
-      </aside>
       <main id="viewport"></main>
-      <footer id="timeline"></footer>
+      <!-- Everything else floats over the 3D view; clicks between the cards reach the viewport -->
+      <div class="overlay">
+        <header class="header">
+          <div class="shot-chip">
+            <span id="shot-name">RapidVis</span>
+            <span id="shot-info"></span>
+          </div>
+          <div id="command-slot" class="command-slot"></div>
+          <div class="header-buttons">
+            <div id="header-tools" class="header-tools"></div>
+            <button id="open-button" class="open-button" type="button">Open shot…</button>
+          </div>
+        </header>
+        <div class="middle">
+          <aside id="outliner" class="card scene-card">
+            <h2 class="card-label">Scene</h2>
+            <p id="status">Drop a shot folder (or a .glb and its manifest) anywhere</p>
+          </aside>
+          <aside id="properties" class="card properties-card" hidden></aside>
+        </div>
+        <footer id="timeline"></footer>
+      </div>
+      <input id="file-input" type="file" accept=".glb,.json" multiple hidden />
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -22,7 +22,7 @@ export function createHistoryPanel(
   section.className = 'history';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'History';
+  heading.textContent = 'Changes';
 
   const list = document.createElement('ol');
   list.className = 'history-list';

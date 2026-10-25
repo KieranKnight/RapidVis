@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fractionAt, frameAt, nextKey, tickStep, ticks } from './ruler';
+import { fractionAt, frameAt, nextKey, rulerLabels, tickStep, ticks } from './ruler';
 
 describe('frameAt', () => {
   it('maps a position to the nearest whole frame', () => {
@@ -52,5 +52,16 @@ describe('nextKey', () => {
     expect(nextKey(keys, 48, 1)).toBeNull();
     expect(nextKey(keys, 1, -1)).toBeNull();
     expect(nextKey([], 10, 1)).toBeNull();
+  });
+});
+
+describe('rulerLabels', () => {
+  it('always labels the first and last frame', () => {
+    // 10px a frame: steps of 5, but 5 itself is too close to 1, and 45 to 48
+    expect(rulerLabels(1, 48, 470)).toEqual([1, 10, 15, 20, 25, 30, 35, 40, 48]);
+  });
+
+  it('labels a single frame once', () => {
+    expect(rulerLabels(10, 10, 400)).toEqual([10]);
   });
 });

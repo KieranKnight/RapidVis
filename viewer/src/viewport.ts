@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { fitAspect, type Rect } from './cameras';
 import { createGizmo, GIZMO_COLOR, SELECTED_COLOR, updateCameraGizmo, type Gizmo } from './gizmos';
+import type { SceneColors } from './theme';
+
+/** Movies always get this background, whichever theme the app is in. */
+const MOVIE_BACKGROUND = 0x26282c;
 
 /** Draws the shot on a canvas of its own, with no overlays. For movie export. */
 export interface CleanRenderer {
@@ -16,6 +20,7 @@ export interface Viewport {
   setViewCamera(camera: THREE.PerspectiveCamera | null): void;
   setHighlight(object: THREE.Object3D | null): void;
   setOverlays(visible: boolean): void;
+  setColors(colors: SceneColors): void;
   pick(clientX: number, clientY: number): THREE.Object3D | null;
   pictureRect(): Rect;
   start(onTick: (deltaSeconds: number) => void): void;
@@ -59,10 +64,12 @@ export function createViewport(container: HTMLElement): Viewport {
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x26282c);
+  const background = new THREE.Color(MOVIE_BACKGROUND);
+  scene.background = background;
+  const movieBackground = new THREE.Color(MOVIE_BACKGROUND);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
 
-  const grid = new THREE.GridHelper(10, 10, 0x555555, 0x333333);
+  let grid = new THREE.GridHelper(10, 10, 0x555555, 0x333333);
   scene.add(grid);
 
   const freeCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
@@ -75,12 +82,16 @@ export function createViewport(container: HTMLElement): Viewport {
 
   // Selection highlight: a box around anything with geometry, axes for cameras/lights/empties
   const highlightBounds = new THREE.Box3();
-  const highlightBox = new THREE.Box3Helper(highlightBounds, 0xffa040);
+  const highlightBox = new THREE.Box3Helper(highlightBounds, SELECTED_COLOR);
+  const highlightMaterial = highlightBox.material as THREE.LineBasicMaterial;
+  highlightMaterial.toneMapped = false; // show the theme's accent exactly
   const highlightAxes = new THREE.AxesHelper(0.75);
   scene.add(highlightBox, highlightAxes);
   let highlighted: THREE.Object3D | null = null;
   const gizmos = new Map<THREE.Object3D, Gizmo>(); // camera/light -> its gizmo
   let overlaysVisible = true;
+  const gizmoColor = new THREE.Color(GIZMO_COLOR);
+  const selectedColor = new THREE.Color(SELECTED_COLOR);
 
   const resize = () => {
     const width = container.clientWidth;
@@ -138,7 +149,7 @@ export function createViewport(container: HTMLElement): Viewport {
   function updateGizmos() {
     for (const [owner, gizmo] of gizmos) {
       gizmo.visible = overlaysVisible && owner !== viewCamera; // never draw the camera you're looking through
-      gizmo.material.color.set(owner === highlighted ? SELECTED_COLOR : GIZMO_COLOR);
+      gizmo.material.color.copy(owner === highlighted ? selectedColor : gizmoColor);
       if (owner instanceof THREE.PerspectiveCamera) updateCameraGizmo(gizmo, owner);
     }
   }
@@ -201,6 +212,21 @@ export function createViewport(container: HTMLElement): Viewport {
       overlaysVisible = visible;
     },
 
+    setColors(colors) {
+      background.set(colors.background);
+      gizmoColor.set(colors.gizmo);
+      selectedColor.set(colors.accent);
+      highlightMaterial.color.set(colors.accent);
+
+      // A grid's colours are baked in when it's made, so swap it for a new one
+      const visible = grid.visible;
+      scene.remove(grid);
+      grid.dispose();
+      grid = new THREE.GridHelper(10, 10, colors.grid, colors.grid);
+      grid.visible = visible;
+      scene.add(grid);
+    },
+
     /** Where the picture is, in CSS pixels from the top left: the letterboxed area for a shot camera. */
     pictureRect() {
       const rect = viewRect();
@@ -238,7 +264,9 @@ export function createViewport(container: HTMLElement): Viewport {
           const overlays = [grid, highlightBox, highlightAxes, ...gizmos.values()];
           const shown = overlays.map((overlay) => overlay.visible);
           for (const overlay of overlays) overlay.visible = false;
+          scene.background = movieBackground; // not the theme's
           clean.render(scene, camera);
+          scene.background = background;
           overlays.forEach((overlay, i) => (overlay.visible = shown[i]));
         },
         dispose() {
