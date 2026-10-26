@@ -24,6 +24,16 @@
   --track-bg: #24252a;
   --track-fill: #34363c;
   --danger: #ff8a80; /* not in the handover: error text */
+  --menubar: #16171a; /* the native menu bar's colour: Windows draws that bar, so nothing uses this yet */
+  --card-active: #3a3d44; /* the shot chip while its menu is open */
+  --menu-bg: #2a2c32;
+  --menu-border: #3a3d44;
+  --menu-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  --menu-hover: #34373e;
+  --seg-bg: #1c1d21; /* the theme switch's track */
+  --seg-on: #3a3d44; /* its selected half */
+  --seg-on-shadow: none;
+  --tl-divider: #2b2c30; /* the rule before the timeline's view controls */
 
   /* Fixed: the timeline is dark in both themes */
   --tl-text: #f2f1ee;
@@ -38,6 +48,7 @@
   --dot-mesh: #4a74a8;
   --dot-camera: #7d5cc4;
   --dot-light: #ffd29a;
+  --dot-still: #6f87a8; /* meshes with no animation: set dressing like the ground */
 
   --font-ui: 'Manrope Variable', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', Consolas, monospace;
@@ -57,7 +68,7 @@
   --card: rgba(255, 255, 255, 0.94);
   --card-shadow: 0 1px 2px rgba(27, 28, 31, 0.08), 0 10px 30px rgba(27, 28, 31, 0.08);
   --divider: #ebe9e4;
-  --chip: #efede8;
+  --chip: #ebe9e4;
   --swatch-border: #d9d6cf;
   --key: #c4661f;
   --primary-bg: #1b1c1f;
@@ -69,6 +80,16 @@
   --track-bg: #2b2c30;
   --track-fill: #3a3b40;
   --danger: #b3261e;
+  --menubar: #f3f2ef;
+  --card-active: #ebe9e4;
+  --menu-bg: #ffffff;
+  --menu-border: #ebe9e4;
+  --menu-shadow: 0 18px 50px rgba(27, 28, 31, 0.18);
+  --menu-hover: #f1efea;
+  --seg-bg: #e6e4df;
+  --seg-on: #ffffff;
+  --seg-on-shadow: 0 1px 2px rgba(27, 28, 31, 0.12);
+  --tl-divider: #3a3b40;
 }
 
 /* Fade the colours while switching theme (only then, so hovers stay instant) */
@@ -115,6 +136,29 @@ body {
   outline-offset: -6px;
 }
 
+/* The logo in the middle of the empty viewport, gone once a shot is open */
+.empty-logo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none; /* orbiting still works through it */
+  z-index: 1;
+}
+.empty-logo img {
+  width: min(328px, 40vw);
+  height: auto;
+  opacity: 0.85;
+}
+.logo-light,
+[data-theme='light'] .logo-dark,
+.has-shot .empty-logo {
+  display: none;
+}
+[data-theme='light'] .logo-light {
+  display: block;
+}
+
 /* --- Everything else floats over it. The overlay lets clicks through to the viewport; the
    cards and buttons on it take them back --- */
 .overlay {
@@ -127,10 +171,10 @@ body {
   pointer-events: none;
 }
 .card,
+.header-icon,
 .shot-chip,
+.menu,
 .command-bar,
-.header-buttons button,
-.header-buttons select,
 #timeline {
   pointer-events: auto;
 }
@@ -146,88 +190,178 @@ body {
 #app.cards-hidden .middle {
   visibility: hidden;
 }
+#app.panels-hidden .scene-card,
+#app.panels-hidden .changes-card,
+#app.changes-hidden .changes-card {
+  display: none; /* hidden entirely, not shrunk to a rail */
+}
 
-/* --- Header: shot chip, command bar, buttons --- */
+/* --- Header: the panel button, the command bar, the shot chip --- */
 .header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
-
-.shot-chip {
+.header-zone {
+  flex: 1 1 0;
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 8px 14px;
-  background: var(--card);
-  box-shadow: var(--card-shadow);
-  border-radius: 12px;
-}
-#shot-name {
-  font-weight: 700;
-}
-#shot-info {
-  font: 12px var(--font-mono);
-  color: var(--muted);
-}
-#shot-info:empty {
-  display: none;
-}
-
-.command-slot {
-  flex: 1 1 320px;
-  max-width: 560px;
-  margin: 0 auto;
-}
-
-.header-buttons {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
+}
+.shot-zone {
+  position: relative; /* the shot menu hangs from here */
+  justify-content: flex-end;
   gap: 8px;
 }
-.header-tools {
-  display: contents; /* its buttons line up as if they were header-buttons' own */
+.command-slot {
+  flex: 0 1 560px;
+  min-width: 260px;
 }
 
-.toggle-button,
-.export-button,
-.theme-toggle,
-.camera-select,
-.open-button {
+.header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
   height: 40px;
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 0;
   color: var(--text);
   background: var(--card);
   box-shadow: var(--card-shadow);
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
 }
-.theme-toggle {
+
+.shot-chip {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  padding: 0;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px 0 14px;
+  color: var(--text);
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
 }
-.camera-select {
-  padding: 0 10px;
+.shot-chip.open {
+  background: var(--card-active);
 }
-.toggle-button[aria-pressed='true'] {
-  color: var(--accent-fg);
-  background: var(--accent);
+.shot-name {
+  font-weight: 700;
 }
-.open-button {
-  color: var(--primary-fg);
-  background: var(--primary-bg);
-  box-shadow: none;
+.shot-info {
+  font: 12px var(--font-mono);
+  color: var(--muted);
 }
-.open-button:hover {
-  opacity: 0.85;
+.shot-info:empty {
+  display: none;
+}
+.chip-chevron {
+  color: var(--muted);
+}
+
+/* --- Dropdown menus: the shot menu, and the timeline's camera menu --- */
+.menu {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  color: var(--text);
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  border-radius: 12px;
+  box-shadow: var(--menu-shadow);
+}
+.menu-below {
+  top: 48px; /* 8px under the 40px chip */
+}
+.menu-above {
+  bottom: 48px; /* opens upward, off the timeline */
+  width: 220px;
+}
+.submenu {
+  right: calc(100% + 6px); /* beside the menu, towards the middle of the window */
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  font-size: 13px;
+  text-align: left;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.menu-item:hover,
+.menu-item:focus-visible,
+.menu-item[aria-expanded='true'] {
+  background: var(--menu-hover);
+  outline: none;
+}
+.menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-hint {
+  font: 11px var(--font-mono);
+  color: var(--muted);
+}
+.menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--divider);
+}
+.menu-note {
+  padding: 9px 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* The theme row: a label, then a Light / Dark switch */
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 6px 5px 10px;
+  font-size: 13px;
+}
+.segmented {
+  display: flex;
+  padding: 2px;
+  background: var(--seg-bg);
+  border-radius: 8px;
+}
+.segment {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.segment[aria-pressed='true'] {
+  font-weight: 600;
+  color: var(--text);
+  background: var(--seg-on);
+  box-shadow: var(--seg-on-shadow);
+}
+.segment:focus-visible {
+  outline: 2px solid var(--accent);
 }
 
 /* --- Command bar --- */
@@ -239,7 +373,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  height: 40px;
+  padding: 0 14px;
   background: var(--card);
   box-shadow: var(--card-shadow);
   border-radius: 12px;
@@ -266,8 +401,7 @@ body {
   outline: none;
 }
 .command-input::placeholder {
-  color: var(--text);
-  opacity: 0.6;
+  color: var(--muted);
 }
 
 .command-hint {
@@ -366,7 +500,8 @@ body {
 }
 
 .scene-card {
-  flex: 0 1 230px;
+  position: relative; /* for its resize handle */
+  flex: 0 0 var(--scene-width, 230px);
   min-width: 0;
   max-height: 100%; /* past the window's height, its lists scroll */
   display: flex;
@@ -397,11 +532,14 @@ body {
 }
 
 .outliner-list {
-  min-height: 0;
+  min-height: 76px; /* always room for a couple of rows, however much is below */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+.outliner-list:empty {
+  min-height: 0; /* no shot yet: no gap under the message */
 }
 
 .outliner-row {
@@ -466,6 +604,12 @@ body {
 .type-dot.light {
   background: var(--dot-light); /* outliner.ts swaps in the light's own colour */
 }
+.type-dot.mesh.still {
+  background: var(--dot-still);
+}
+[data-theme='light'] .type-dot.light {
+  box-shadow: inset 0 0 0 1px #b9b5ad; /* a white light would vanish on the white card */
+}
 
 .key-diamond {
   flex: none;
@@ -479,24 +623,25 @@ body {
   background: var(--accent-fg);
 }
 
-/* --- Properties: the selected object's card, on the right --- */
-.properties-card {
-  flex: 0 1 280px;
-  min-width: 0;
-  max-height: 100%;
-  overflow-y: auto;
+/* --- Details: the selected object's settings, in the Scene panel between its list and Changes --- */
+.scene-details {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto; /* in a short window, it scrolls after the scene list has shrunk */
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 10px 8px 4px;
+  border-top: 1px solid var(--divider);
 }
-.properties-card[hidden] {
+.scene-details[hidden] {
   display: none; /* the display above would otherwise beat the hidden attribute */
 }
 
 .props-name {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -525,20 +670,32 @@ body {
   color: var(--muted2);
 }
 
-.swatches {
+/* The light's colour: a box that opens the colour picker, and its hex beside it */
+.props-colour {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
 }
-.swatch {
-  width: 44px;
-  height: 44px;
+.colour-box {
+  flex: 1; /* a flat bar across the row, with the hex at its end */
+  min-width: 0;
+  height: 28px;
   padding: 0;
+  background: none;
   border: 1px solid var(--swatch-border);
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
 }
-.swatch[aria-pressed='true'] {
-  border: 2px solid var(--text);
+.colour-box::-webkit-color-swatch-wrapper {
+  padding: 2px; /* a little frame, so white and pale colours still read against the card */
+}
+.colour-box::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+.colour-box:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .props-slider {
@@ -577,15 +734,47 @@ body {
   color: var(--muted);
 }
 
-/* --- Changes: the scene card's footer --- */
-.history {
+/* --- Changes: its own card on the right --- */
+.changes-card {
+  position: relative; /* for its resize handle */
+  flex: 0 0 var(--changes-width, 240px);
+  min-width: 0;
+  max-height: 100%;
+  margin-left: auto; /* stays on the right even when the Scene panel is hidden */
   display: flex;
   flex-direction: column;
-  flex: none;
+  padding: 12px;
+}
+
+/* A side panel's resize handle: a thin strip on its inner edge */
+.resize-handle {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  width: 8px;
+  border-radius: 4px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.resize-right {
+  right: -4px;
+}
+.resize-left {
+  left: -4px;
+}
+.resize-handle:hover,
+.resize-handle.dragging {
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.resize-handle:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.history {
+  flex: 0 1 auto;
   min-height: 0;
-  margin-top: 6px;
-  padding: 10px 0 2px;
-  border-top: 1px solid var(--divider);
+  display: flex;
+  flex-direction: column;
 }
 
 .history-header {
@@ -597,6 +786,23 @@ body {
 }
 .history-header h2 {
   margin-right: auto; /* pushes the buttons to the right */
+}
+.panel-hide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.panel-hide:hover {
+  color: var(--text);
+  background: var(--chip);
 }
 
 .history-action {
@@ -615,7 +821,8 @@ body {
 
 .history-list {
   --row-height: 24px;
-  max-height: calc(var(--row-height) * 6); /* 6 rows, then it scrolls */
+  min-height: 0;
+  max-height: calc(var(--row-height) * 5); /* 5 rows, then it scrolls */
   margin: 0;
   padding: 0;
   list-style: none;
@@ -682,15 +889,32 @@ body {
   opacity: 1;
 }
 
+.history-compare {
+  align-self: flex-start;
+  margin: 8px 8px 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--link);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+/* While comparing, the edits are still listed, just faded: they're switched off, not gone */
+.history.comparing .history-list {
+  opacity: 0.4;
+}
+
 /* --- Timeline: a dark pill along the bottom, dark in both themes --- */
 #timeline {
   --track-inset: 13px; /* the track's rounded ends: keys and the playhead stay inside them */
   align-self: center;
-  width: min(920px, 100%);
+  width: min(1060px, 100%);
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 18px;
+  padding: 12px 14px 12px 18px;
   color: var(--tl-text);
   background: var(--tl-bg);
   box-shadow: var(--tl-shadow);
@@ -793,6 +1017,58 @@ body {
 .frame-seconds {
   font: 11px var(--font-mono);
   color: var(--tl-muted);
+}
+
+.timeline-divider {
+  flex: none;
+  align-self: stretch;
+  width: 1px;
+  background: var(--tl-divider);
+}
+.timeline-controls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.camera-picker {
+  position: relative; /* the camera menu opens upward from here */
+}
+.camera-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tl-text);
+  background: var(--track-bg);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.camera-icon {
+  color: var(--tl-muted);
+}
+
+.icon-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: var(--tl-text);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.icon-toggle[aria-pressed='true'] {
+  color: var(--accent-fg);
+  background: var(--accent);
 }
 
 /* --- Export dialog --- */

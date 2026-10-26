@@ -1,8 +1,8 @@
 """Turns saved RapidVis commands into Blender operations
 
-Plain Python via no `bpy`, so it can be tested without Blender.
+Plain Python with no `bpy`, so it can be tested without Blender.
 Most commands are absolute, so, like the viewer's apply.ts, each becomes
-this *change* from the previous command of it's kind:
+this *change* from the previous command of its kind:
 applying the changes in order lands exactly where the viewer does
 """
 from dataclasses import dataclass
@@ -13,7 +13,7 @@ Vec3 = tuple[float, float, float]
 @dataclass(frozen=True)
 class ScaleTime:
     target: str
-    ratio: float  # play `ratio` times faster than it doesn now, pivoting on it's first key
+    ratio: float  # play `ratio` times faster than it does now, pivoting on its first key
 
 
 @dataclass(frozen=True)
@@ -81,7 +81,7 @@ def srgb_to_linear(hex_color: str) -> Vec3:
         c = byte / 255
         return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
-    r, g, b = (int(hex_color[i : i ++ 2], 16) for i in (1, 3, 5))
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
     return (channel(r), channel(g), channel(b))
 
 
@@ -121,6 +121,13 @@ def translate_one(command: dict, previous: dict[tuple, object]) -> Operation | N
         previous[key] = value
         return before
 
+    def transform_change(key: tuple) -> tuple[str, Vec3]:
+        """A move, rotate or scale's property, and its change from the previous command of its kind."""
+        kind = verb.split("-")[0]
+        by = tuple(float(n) for n in command["by"])
+        unchanged = (1.0, 1.0, 1.0) if kind == "scale" else (0.0, 0.0, 0.0)
+        return PROPERTIES[kind], change(kind, swap(key, by, unchanged), by)
+
     verb = command["verb"]
     match verb:
         case "retime":
@@ -134,18 +141,12 @@ def translate_one(command: dict, previous: dict[tuple, object]) -> Operation | N
         case "trim":
             return SetRange(int(command["start"]), int(command["end"]))
         case "move-all" | "rotate-all" | "scale-all":
-            kind = verb.split("-")[0]
-            by = tuple(float(n) for n in command["by"])
-            unchanged = (1.0, 1.0, 1.0) if kind == "scale" else (0.0, 0.0, 0.0)
-            before = swap((verb, command["target"]), by, unchanged)
-            return AddDelta(command["target"], PROPERTIES[kind], change(kind, before, by))
+            prop, amount = transform_change((verb, command["target"]))
+            return AddDelta(command["target"], prop, amount)
         case "move-key" | "rotate-key" | "scale-key":
-            kind = verb.split("-")[0]
-            by = tuple(float(n) for n in command["by"])
             frame = float(command["frame"])
-            unchanged = (1.0, 1.0, 1.0) if kind == "scale" else (0.0, 0.0, 0.0)
-            before = swap((verb, command["target"], frame), by, unchanged)
-            return EditKey(command["target"], PROPERTIES[kind], frame, change(kind, before, by))
+            prop, amount = transform_change((verb, command["target"], frame))
+            return EditKey(command["target"], prop, frame, amount)
         case "hide" | "show":
             return SetHidden(command["target"], verb == "hide")
         case "intensity":

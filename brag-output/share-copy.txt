@@ -1,0 +1,1 @@
+Pre-vis notes, typed. RapidVis opens your Blender shot in a fast review viewer, where `retime cube 1.5` isn't a note, it's the change. Undo it, mute it, compare it, export the review movie, then send every edit back into Blender as one undo.

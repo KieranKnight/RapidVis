@@ -1,22 +1,22 @@
 import { formatCommand } from '../commands/format';
 import type { CommandLog } from '../commands/log';
 import type { Command } from '../commands/parse';
+import { keepFocus } from './dom';
 
-/** Saving and loading the whole history, done by main.ts */
-export interface HistoryFiles {
-  save: () => void;
-  load: (file: File) => void;
-}
+// A 14px cross, for the card's own hide button
+const CLOSE_ICON =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 
 /**
  * Click a row to jump to that point, double-click to edit it in the command bar,
  * M to mute it (compare the shot without it), ✕ to remove it.
+ * `onHide` is the card's own hide button, so hiding just Changes is easy to find (H does the same).
  */
 export function createHistoryPanel(
   root: HTMLElement,
   log: CommandLog,
   onEdit: (text: string) => void,
-  files: HistoryFiles,
+  onHide: () => void,
 ) {
   const section = document.createElement('section');
   section.className = 'history';
@@ -27,26 +27,27 @@ export function createHistoryPanel(
   const list = document.createElement('ol');
   list.className = 'history-list';
 
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = '.json';
-  fileInput.hidden = true;
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    fileInput.value = ''; // so choosing the same file again still counts as a change
-    if (file) files.load(file);
-  });
-
   const header = document.createElement('div');
   header.className = 'history-header';
-  header.append(
-    heading,
-    actionButton('Save', 'Save these edits to a file (Ctrl+S)', files.save),
-    actionButton('Load', 'Load edits from a file', () => fileInput.click()),
-    fileInput,
-  );
+  const hide = document.createElement('button');
+  hide.type = 'button';
+  hide.className = 'panel-hide';
+  hide.title = 'Hide changes (H)';
+  hide.setAttribute('aria-label', hide.title);
+  hide.innerHTML = CLOSE_ICON;
+  keepFocus(hide);
+  hide.addEventListener('click', onHide);
+  header.append(heading, hide); // saving and loading live in the shot menu
 
-  section.append(header, list);
+  // An instant A/B: every edit off, then on again. The history itself never changes
+  const compare = document.createElement('button');
+  compare.type = 'button';
+  compare.className = 'history-compare';
+  compare.title = 'Compare with the original shot (C)';
+  keepFocus(compare);
+  compare.addEventListener('click', () => log.setComparing(!log.isComparing));
+
+  section.append(header, list, compare);
 
   root.append(section);
 
@@ -81,7 +82,7 @@ export function createHistoryPanel(
       mute.textContent = 'M';
       mute.title = muted ? 'Unmute: apply this command again' : 'Mute: see the shot without it';
       mute.setAttribute('aria-pressed', String(muted));
-      mute.addEventListener('mousedown', (event) => event.preventDefault()); // keep keyboard focus
+      keepFocus(mute);
       mute.addEventListener('click', (event) => {
         event.stopPropagation(); // don't also jump to this row
         log.toggleMute(index);
@@ -93,7 +94,7 @@ export function createHistoryPanel(
       remove.className = 'history-remove';
       remove.textContent = '✕';
       remove.title = 'Remove this command';
-      remove.addEventListener('mousedown', (event) => event.preventDefault()); // keep keyboard focus
+      keepFocus(remove);
       remove.addEventListener('click', (event) => {
         event.stopPropagation(); // don't also jump to this row
         log.remove(index);
@@ -110,19 +111,13 @@ export function createHistoryPanel(
       ...commands.map((command, index) => createRow(index, command)),
     );
     list.querySelector('.current')?.scrollIntoView({ block: 'nearest' });
+
+    compare.hidden = log.applied.length === 0; // nothing to compare yet
+    compare.textContent = log.isComparing ? 'Back to the edits' : 'Compare with original';
+    compare.setAttribute('aria-pressed', String(log.isComparing));
+    section.classList.toggle('comparing', log.isComparing);
   };
 
   log.onChange(render);
   render();
-}
-
-function actionButton(text: string, title: string, onClick: () => void): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'history-action';
-  button.textContent = text;
-  button.title = title;
-  button.addEventListener('mousedown', (event) => event.preventDefault()); // keep keyboard focus
-  button.addEventListener('click', onClick);
-  return button;
 }

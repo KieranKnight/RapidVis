@@ -1,5 +1,13 @@
+import { keepFocus } from './dom';
+
 export interface ToggleButton {
   toggle(): void;
+}
+
+/** For an icon-only toggle: the icon, and the key that also toggles it (named in the tooltip). */
+export interface ToggleLook {
+  icon: string;
+  shortcut: string;
 }
 
 export function createToggleButton(
@@ -7,11 +15,18 @@ export function createToggleButton(
   label: string,
   initial: boolean,
   onChange: (on: boolean) => void,
+  look?: ToggleLook,
 ): ToggleButton {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'toggle-button';
-  button.textContent = label;
+  button.className = look ? 'toggle-button icon-toggle' : 'toggle-button';
+  if (look) {
+    button.innerHTML = look.icon;
+    button.title = `${label} (${look.shortcut})`;
+    button.setAttribute('aria-label', label);
+  } else {
+    button.textContent = label;
+  }
   root.append(button);
 
   let on = initial;
@@ -20,8 +35,7 @@ export function createToggleButton(
     onChange(on);
   };
 
-  // Don't take focus on mouse click, so Space and the arrows keep controlling playback
-  button.addEventListener('mousedown', (event) => event.preventDefault());
+  keepFocus(button);
   button.addEventListener('click', () => {
     on = !on;
     apply();

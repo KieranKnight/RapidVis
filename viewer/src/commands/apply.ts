@@ -119,6 +119,12 @@ export function stillValue(
   return state.poses[node.id]?.[property] ?? node.rest[property];
 }
 
+const noAnimation = (node: SceneNode, verb: 'retime' | 'offset') =>
+  `"${node.id}" has no animation to ${verb}`;
+
+const noKeys = (node: SceneNode, verb: Verb, property: TransformProperty) =>
+  `"${node.id}" has no ${property} animation to key. Try ${verb.replace('-key', '-all')}`;
+
 /** The property each key command edits. */
 const KEY_PROPERTY = {
   'move-key': 'position',
@@ -137,15 +143,12 @@ export function targetError(verb: Verb, node: SceneNode, state: ShotState): stri
   switch (verb) {
     case 'retime':
     case 'offset':
-      if (animates(state.clips, node.gltfName)) return null;
-      return `"${node.id}" has no animation to ${verb}`;
+      return animates(state.clips, node.gltfName) ? null : noAnimation(node, verb);
     case 'move-key':
     case 'rotate-key':
     case 'scale-key': {
       const property = KEY_PROPERTY[verb];
-      if (animates(state.clips, node.gltfName, property)) return null;
-      const all = verb.replace('-key', '-all');
-      return `"${node.id}" has no ${property} animation to key. Try ${all}`;
+      return animates(state.clips, node.gltfName, property) ? null : noKeys(node, verb, property);
     }
     case 'intensity':
     case 'color':
@@ -239,13 +242,13 @@ export function applyCommand(
     case 'retime': {
       const before = latest(history, 'retime', command.target)?.factor ?? 1;
       const clips = retime(state.clips, node.gltfName, command.factor / before);
-      if (!clips) return { error: `"${node.id}" has no animation to retime` };
+      if (!clips) return { error: noAnimation(node, 'retime') };
       return { ok: { ...state, clips } };
     }
     case 'offset': {
       const before = latest(history, 'offset', command.target)?.frames ?? 0;
       const clips = offset(state.clips, node.gltfName, (command.frames - before) / context.fps);
-      if (!clips) return { error: `"${node.id}" has no animation to offset` };
+      if (!clips) return { error: noAnimation(node, 'offset') };
       return { ok: { ...state, clips } };
     }
     case 'move-all':
@@ -266,10 +269,7 @@ export function applyCommand(
         command.frame / context.fps,
         edit,
       );
-      if (!clips) {
-        const all = command.verb.replace('-key', '-all');
-        return { error: `"${node.id}" has no ${property} animation to key. Try ${all}` };
-      }
+      if (!clips) return { error: noKeys(node, command.verb, property) };
       return { ok: { ...state, clips } };
     }
     case 'hide':

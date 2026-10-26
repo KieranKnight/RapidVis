@@ -1,5 +1,6 @@
 import { fractionAt, frameAt, rulerLabels } from '../ruler';
 import { frameToSeconds, type Timeline } from '../timeline';
+import { keepFocus } from './dom';
 
 // 16px play and pause glyphs, filled with the button's text colour
 const PLAY =
@@ -8,6 +9,8 @@ const PAUSE =
   '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.5 2.5h3v11h-3zM9.5 2.5h3v11h-3z"/></svg>';
 
 export interface TimelineBar {
+  /** Where the view controls go (camera, overlays, burn-in): main.ts fills it. */
+  readonly controls: HTMLElement;
   /** Every key to mark, and the ones to pick out (the selected object's). */
   setKeys(frames: readonly number[], picked: readonly number[]): void;
 }
@@ -49,7 +52,13 @@ export function createTimelineBar(root: HTMLElement, timeline: Timeline): Timeli
   seconds.className = 'frame-seconds';
   counter.append(frameNow, frameTotal, seconds);
 
-  root.replaceChildren(playButton, ruler, counter);
+  // After a divider, the view controls
+  const divider = document.createElement('div');
+  divider.className = 'timeline-divider';
+  const controls = document.createElement('div');
+  controls.className = 'timeline-controls';
+
+  root.replaceChildren(playButton, ruler, counter, divider, controls);
 
   let keys: readonly number[] = [];
   let pickedKeys = new Set<number>();
@@ -128,13 +137,14 @@ export function createTimelineBar(root: HTMLElement, timeline: Timeline): Timeli
     if (ruler.hasPointerCapture(event.pointerId)) scrubTo(event);
   });
 
-  playButton.addEventListener('mousedown', (event) => event.preventDefault()); // keep keys on playback
+  keepFocus(playButton);
   playButton.addEventListener('click', () => timeline.toggle());
   new ResizeObserver(renderLabels).observe(ruler); // more room means more labels
   timeline.onChange(render);
   render();
 
   return {
+    controls,
     setKeys(frames, picked) {
       keys = frames;
       pickedKeys = new Set(picked);

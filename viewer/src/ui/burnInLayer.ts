@@ -1,5 +1,6 @@
 import type { BurnIn } from '../burnin';
 import type { Rect } from '../cameras';
+import { recall, remember } from '../storage';
 
 const STORAGE_KEY = 'rapidvis.burnIn';
 
@@ -52,7 +53,7 @@ export function createBurnInLayer(container: HTMLElement): BurnInLayer {
   const context = canvas.getContext('2d');
   if (!context) throw new Error("This browser can't draw 2D text on a canvas");
 
-  let visible = load();
+  let visible = recall(STORAGE_KEY) === 'true';
 
   return {
     get visible() {
@@ -60,7 +61,7 @@ export function createBurnInLayer(container: HTMLElement): BurnInLayer {
     },
     setVisible(on) {
       visible = on;
-      save(on);
+      remember(STORAGE_KEY, String(on));
     },
     draw(area, text) {
       // Draw at the screen's real resolution, so the text is sharp on hi-DPI screens
@@ -84,21 +85,4 @@ export function createBurnInLayer(container: HTMLElement): BurnInLayer {
       drawBurnIn(context, burnIn, scaled);
     },
   };
-}
-
-// Like the sidebar layout: storage may be blocked, and that must never break anything
-function load(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function save(visible: boolean) {
-  try {
-    localStorage.setItem(STORAGE_KEY, String(visible));
-  } catch {
-    // Not remembered, but still works
-  }
 }

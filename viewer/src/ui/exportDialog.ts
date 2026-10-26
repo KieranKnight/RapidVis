@@ -1,6 +1,7 @@
 import type { PerspectiveCamera } from 'three';
 import { CODECS, type MovieCodec } from '../export/settings';
 import { saveFile } from '../platform';
+import { errorLine } from './dom';
 
 export interface ExportChoice {
   camera: PerspectiveCamera;
@@ -84,7 +85,6 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
 
   function setRunning(controller: AbortController | null) {
     running = controller;
-    cameraSelect.disabled = sizeSelect.disabled = exportButton.disabled = controller !== null;
     for (const control of [cameraSelect, sizeSelect, codecSelect, burnInBox, exportButton]) {
       control.disabled = controller !== null;
     }
@@ -122,7 +122,7 @@ export function createExportDialog(root: HTMLElement, run: RunExport) {
         message.textContent = 'Cancelled';
       }
     } catch (error) {
-      message.textContent = `✖ ${error instanceof Error ? error.message : String(error)}`;
+      message.textContent = errorLine(error);
     } finally {
       setRunning(null);
     }

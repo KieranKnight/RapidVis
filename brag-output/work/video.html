@@ -1,0 +1,401 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: 'Manrope';
+        src: url('fonts/manrope-latin-wght-normal.woff2') format('woff2');
+        font-weight: 200 800;
+      }
+      @font-face {
+        font-family: 'JB Mono';
+        src: url('fonts/jetbrains-mono-latin-wght-normal.woff2') format('woff2');
+        font-weight: 100 800;
+      }
+      :root {
+        --bg: #1c1d21;
+        --card: #2a2c32;
+        --text: #eceef2;
+        --muted: #a5a9b2;
+        --muted2: #c9ccd3;
+        --chip: #3a3d44;
+        --accent: #8fb3ff;
+        --blue: #2f5bd3;
+        --key: #ffd29a;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Manrope', sans-serif;
+      }
+      .layer {
+        position: absolute;
+        inset: 0;
+      }
+      .center {
+        display: grid;
+        place-items: center;
+      }
+
+      /* --- 1: the hook, the app's command bar at five times its size --- */
+      .pill {
+        display: flex;
+        align-items: center;
+        gap: 40px;
+        height: 200px;
+        width: 1240px;
+        padding: 0 64px;
+        box-sizing: border-box;
+        background: var(--card);
+        border-radius: 60px;
+        box-shadow:
+          0 0 0 6px var(--accent),
+          0 40px 120px rgba(0, 0, 0, 0.45);
+      }
+      .pill svg {
+        flex: none;
+        color: var(--muted);
+      }
+      .pill .typed {
+        flex: 1;
+        font: 500 72px 'JB Mono';
+        white-space: pre;
+      }
+      .caret {
+        display: inline-block;
+        width: 6px;
+        height: 84px;
+        margin-left: 4px;
+        vertical-align: -14px;
+        background: var(--accent);
+      }
+      .pill .check {
+        font: 700 72px 'JB Mono';
+        color: var(--accent);
+      }
+      .hook-caption {
+        margin-top: 80px;
+        font-weight: 700;
+        font-size: 84px;
+        letter-spacing: -1.5px;
+      }
+      .hook-caption em,
+      .caption em,
+      .outro-line em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      #hook-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* --- 2 to 5: the real app --- */
+      #stage {
+        transform-origin: 0 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        box-shadow: 0 40px 140px rgba(0, 0, 0, 0.55);
+      }
+      #stage img {
+        width: 1920px;
+        height: 1080px;
+        display: block;
+      }
+      .caption-wrap {
+        position: absolute;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+      }
+      .caption {
+        padding: 26px 48px;
+        font-weight: 700;
+        font-size: 64px;
+        letter-spacing: -1px;
+        background: rgba(28, 29, 33, 0.92);
+        border-radius: 28px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+        white-space: nowrap;
+      }
+      .keycap {
+        position: absolute;
+        padding: 14px 30px;
+        font: 600 52px 'JB Mono';
+        color: var(--text);
+        background: var(--chip);
+        border-radius: 18px;
+        box-shadow:
+          inset 0 -6px 0 rgba(0, 0, 0, 0.35),
+          0 16px 40px rgba(0, 0, 0, 0.45);
+      }
+
+      /* --- 6: back to Blender, then the logo --- */
+      .outro-line {
+        font-weight: 700;
+        font-size: 104px;
+        letter-spacing: -2px;
+        text-align: center;
+        line-height: 1.15;
+      }
+      .menu-path {
+        margin-top: 64px;
+        padding: 20px 36px;
+        font: 500 44px 'JB Mono';
+        color: var(--muted2);
+        background: var(--card);
+        border-radius: 20px;
+      }
+      .menu-path b {
+        font-weight: 600;
+        color: var(--text);
+      }
+      #lockup-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #lockup {
+        width: 900px;
+      }
+      .tagline {
+        margin-top: 56px;
+        font-weight: 600;
+        font-size: 54px;
+        color: var(--text);
+      }
+      .repo {
+        margin-top: 22px;
+        font: 500 38px 'JB Mono';
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hook" class="layer center">
+      <div id="hook-wrap">
+        <div class="pill" id="pill">
+          <svg width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5M12 19h8" /></svg>
+          <span class="typed"><span id="typed"></span><span class="caret" id="caret"></span></span>
+          <span class="check" id="check">✓</span>
+        </div>
+        <div class="hook-caption" id="hook-caption">Pre-vis notes, <em>typed.</em></div>
+      </div>
+    </div>
+
+    <div id="app" class="layer">
+      <div id="stage"><img id="shot" /></div>
+      <div class="caption-wrap" id="caption-wrap"><div class="caption" id="caption"></div></div>
+      <div class="keycap" id="keycap"></div>
+    </div>
+
+    <div id="outro-line" class="layer center">
+      <div style="display: flex; flex-direction: column; align-items: center">
+        <div class="outro-line" id="outro-a">Back into Blender.</div>
+        <div class="outro-line" id="outro-b"><em>One undo.</em></div>
+        <div class="menu-path" id="menu-path">File › Import › <b>RapidVis edits</b></div>
+      </div>
+    </div>
+
+    <div id="logo" class="layer center">
+      <div id="lockup-wrap">
+        <img id="lockup" src="rapidvis-lockup-on-dark.svg" />
+        <div class="tagline" id="tagline">Blender add-on + desktop app</div>
+        <div class="repo" id="repo">github.com/KieranKnight/RapidVis</div>
+      </div>
+    </div>
+
+    <script>
+      // Every frame is a pure function of t (seconds). 120 BPM: a beat is 0.5s, a 16th 0.125s.
+      const $ = (id) => document.getElementById(id);
+      const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+      const seg = (t, a, b) => clamp((t - a) / (b - a));
+      const outCubic = (x) => 1 - Math.pow(1 - x, 3);
+      const inOutCubic = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+      const outBack = (x) => 1 + 2.5 * Math.pow(x - 1, 3) + 1.5 * Math.pow(x - 1, 2);
+      const lerp = (a, b, x) => a + (b - a) * x;
+      const pad = (n, w) => String(n).padStart(w, '0');
+
+      /** In over [a, a+d], out from b: 0..1 visibility. */
+      const life = (t, a, b, d = 0.35) =>
+        outCubic(seg(t, a, a + d)) * (1 - inOutCubic(seg(t, b, b + d * 0.7)));
+
+      const COMMAND = 'retime cube 1.5';
+
+      // --- Which real capture of the app is on screen at time t ---
+      function appFrame(t) {
+        if (t < 7) {
+          // the shot playing at 24 fps, arriving on frame 30 at 7.0s (where the typing frames are)
+          const f = (((29 + Math.round((t - 7) * 24)) % 48) + 48) % 48;
+          return `app/play/${pad(f + 1, 3)}.png`;
+        }
+        if (t < 7.5) return 'app/free.png';
+        if (t < 9.5) {
+          const i = clamp(Math.floor((t - 7.5) / 0.125) + 1, 1, 15);
+          return `app/type/${pad(i, 2)}.png`;
+        }
+        if (t < 11) return 'app/typed.png';
+        if (t < 12.5) return 'app/history.png';
+        if (t < 14) return 'app/compare.png';
+        if (t < 15) return 'app/burnin.png';
+        return 'app/export.png';
+      }
+
+      // The camera on the app: point (cx, cy) of the 1920×1080 capture sits at the screen's centre, scaled by s
+      const VIEWS = [
+        // [time, cx, cy, s]
+        [4.0, 960, 620, 0.7],
+        [4.55, 960, 640, 0.78],
+        [7.0, 960, 640, 0.78],
+        [7.5, 960, 180, 2.2],
+        [9.6, 960, 180, 2.2],
+        [10.2, 960, 540, 1.0],
+        [11.0, 960, 540, 1.0],
+        [11.4, 1301, 348, 1.55],
+        [14.0, 1301, 348, 1.55],
+        [14.01, 960, 540, 1.0],
+        [15.0, 960, 540, 1.04],
+        [15.01, 960, 540, 1.0],
+        [15.5, 960, 535, 1.8],
+        [16.0, 960, 535, 1.86],
+      ];
+      function view(t) {
+        if (t <= VIEWS[0][0]) return VIEWS[0].slice(1);
+        for (let i = 1; i < VIEWS.length; i++) {
+          const [t1, ...b] = VIEWS[i];
+          const [t0, ...a] = VIEWS[i - 1];
+          if (t <= t1) {
+            const x = inOutCubic(seg(t, t0, t1));
+            return a.map((v, k) => lerp(v, b[k], x));
+          }
+        }
+        return VIEWS[VIEWS.length - 1].slice(1);
+      }
+
+      const CAPTIONS = [
+        // [in, out, html, top]
+        [4.25, 6.75, 'Export from Blender. Review in <em>RapidVis.</em>', 915],
+        [7.6, 10.75, 'Type the note. <em>It’s the change.</em>', 830],
+        [11.3, 13.75, 'Undo it. Mute it. <em>Compare with the original.</em>', 450],
+        [14.1, 15.65, 'Review movie, <em>burn-in on.</em>', 830],
+      ];
+      const KEYCAPS = [
+        // [in, out, label, left, top]
+        [12.5, 13.7, 'C', 1720, 640],
+        [14.0, 14.9, 'B', 1380, 640],
+        [15.0, 15.65, 'Ctrl E', 1300, 640],
+      ];
+
+      let shownFrame = '';
+      async function render(t) {
+        // 1: the hook
+        const hookOut = 1 - inOutCubic(seg(t, 3.75, 4.0));
+        const hookIn = outCubic(seg(t, 0, 0.3));
+        $('hook').style.display = t < 4 ? 'grid' : 'none';
+        $('hook').style.opacity = hookIn * hookOut;
+        const lift = inOutCubic(seg(t, 2.25, 2.6)) * 30;
+        $('hook-wrap').style.transform = `translateY(${(1 - hookIn) * 40 - lift}px) scale(${lerp(1, 0.94, 1 - hookOut)})`;
+        const chars = clamp(Math.floor((t - 0.25) / 0.125) + 1, 0, COMMAND.length);
+        $('typed').textContent = COMMAND.slice(0, chars);
+        const typing = t > 0.25 && t < 2.125;
+        $('caret').style.opacity = typing || Math.floor(t / 0.5) % 2 === 0 ? 1 : 0;
+        const check = seg(t, 2.25, 2.55);
+        $('check').style.opacity = check;
+        $('check').style.transform = `scale(${0.4 + 0.6 * outBack(check)})`;
+        const cap = outCubic(seg(t, 2.3, 2.7));
+        $('hook-caption').style.opacity = cap;
+        $('hook-caption').style.transform = `translateY(${(1 - cap) * 30}px)`;
+
+        // 2 to 5: the app
+        const appVis = t >= 4 && t < 16.1;
+        $('app').style.display = appVis ? 'block' : 'none';
+        if (appVis) {
+          const frame = appFrame(t);
+          if (frame !== shownFrame) {
+            $('shot').src = frame;
+            await $('shot').decode();
+            shownFrame = frame;
+          }
+          const [cx, cy, s] = view(t);
+          const stage = $('stage');
+          stage.style.transform = `translate(${960 - cx * s}px, ${540 - cy * s}px) scale(${s})`;
+          stage.style.borderRadius = `${s < 1 ? 22 / s : 0}px`;
+          const enter = outCubic(seg(t, 4.0, 4.5));
+          const exit = 1 - inOutCubic(seg(t, 15.75, 16.05)); // gone before the next line comes in
+          stage.style.opacity = enter * exit;
+          stage.style.translate = `0 ${(1 - enter) * 160}px`;
+
+          const c = CAPTIONS.find(([a, b]) => t >= a && t < b + 0.3);
+          const wrap = $('caption-wrap');
+          if (c) {
+            const [a, b, html, top] = c;
+            $('caption').innerHTML = html;
+            wrap.style.opacity = life(t, a, b, 0.35);
+            wrap.style.top = `${top}px`;
+            wrap.style.transform = `translateY(${(1 - outCubic(seg(t, a, a + 0.35))) * 24}px)`;
+          } else wrap.style.opacity = 0;
+
+          const k = KEYCAPS.find(([a, b]) => t >= a && t < b + 0.3);
+          const keycap = $('keycap');
+          if (k) {
+            const [a, b, label, left, top] = k;
+            keycap.textContent = label;
+            const pop = seg(t, a, a + 0.25);
+            const press = seg(t, a + 0.06, a + 0.16) * (1 - seg(t, a + 0.16, a + 0.3)) * 8;
+            keycap.style.opacity = life(t, a, b, 0.2);
+            keycap.style.left = `${left}px`;
+            keycap.style.top = `${top}px`;
+            keycap.style.transform = `scale(${0.6 + 0.4 * outBack(pop)}) translateY(${press}px)`;
+          } else keycap.style.opacity = 0;
+        }
+
+        // 6a: back into Blender
+        const lineIn = (a) => outCubic(seg(t, a, a + 0.35));
+        $('outro-line').style.display = t >= 16 && t < 18.05 ? 'grid' : 'none';
+        $('outro-line').style.opacity = 1 - inOutCubic(seg(t, 17.75, 18.0));
+        for (const [id, a] of [
+          ['outro-a', 16.12],
+          ['outro-b', 16.3],
+          ['menu-path', 16.5],
+        ]) {
+          $(id).style.opacity = lineIn(a);
+          $(id).style.transform = `translateY(${(1 - lineIn(a)) * 36}px)`;
+        }
+
+        // 6b: the logo
+        $('logo').style.display = t >= 18 ? 'grid' : 'none';
+        const logoIn = outCubic(seg(t, 18.0, 18.5));
+        $('lockup').style.opacity = logoIn;
+        $('lockup').style.transform = `scale(${lerp(0.86, 1, logoIn)})`;
+        for (const [id, a] of [
+          ['tagline', 18.35],
+          ['repo', 18.55],
+        ]) {
+          const v = outCubic(seg(t, a, a + 0.35));
+          $(id).style.opacity = v;
+          $(id).style.transform = `translateY(${(1 - v) * 24}px)`;
+        }
+        $('lockup-wrap').style.transform = `scale(${lerp(1, 1.03, seg(t, 18.5, 22))})`; // a slow push while it holds
+
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        return true;
+      }
+      window.render = render;
+      window.ready = Promise.all([
+        document.fonts.load('700 64px Manrope'),
+        document.fonts.load('500 72px "JB Mono"'),
+        document.fonts.ready,
+        $('lockup').decode(),
+      ]).then(() => true);
+    </script>
+  </body>
+</html>

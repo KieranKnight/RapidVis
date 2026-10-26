@@ -43,9 +43,14 @@ def get_fcurves(id_data) -> list:
     return list(bag.fcurves) if bag else []
 
 
+def object_fcurves(obj) -> list:
+    """Every F-curve of an object and of its data (a camera's lens, a light's power)."""
+    return get_fcurves(obj) + get_fcurves(obj.data)
+
+
 def keyframes(obj) -> list:
-    """Every key of an object and of its data (a camera's lens, a light's power)."""
-    return [key for fcurve in get_fcurves(obj) + get_fcurves(obj.data) for key in fcurve.keyframe_points]
+    """Every key of an object and of its data."""
+    return [key for fcurve in object_fcurves(obj) for key in fcurve.keyframe_points]
 
 
 def move_keys_in_time(obj, new_frame) -> None:
@@ -53,7 +58,7 @@ def move_keys_in_time(obj, new_frame) -> None:
     for key in keyframes(obj):
         for point in (key.co, key.handle_left, key.handle_right):
             point.x = new_frame(point.x)
-    for fcurve in get_fcurves(obj) + get_fcurves(obj.data):
+    for fcurve in object_fcurves(obj):
         fcurve.update()
 
 

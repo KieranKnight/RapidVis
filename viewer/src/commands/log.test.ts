@@ -142,3 +142,31 @@ describe('loading', () => {
     ]);
   });
 });
+
+describe('comparing with the original', () => {
+  it('switches every edit off without changing the history', () => {
+    const log = logWith('a', 'b');
+    log.setComparing(true);
+    expect(log.active).toEqual([]);
+    expect(targets(log.applied)).toEqual(['a', 'b']); // still there, still saved
+    log.setComparing(false);
+    expect(targets(log.active)).toEqual(['a', 'b']);
+  });
+
+  it('tells listeners, so the scene redraws', () => {
+    const log = logWith('a');
+    const listener = vi.fn();
+    log.onChange(listener);
+    log.setComparing(true);
+    log.setComparing(true); // already on: nothing to tell
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops as soon as the history changes', () => {
+    const log = logWith('a');
+    log.setComparing(true);
+    log.push(retime('b'));
+    expect(log.isComparing).toBe(false);
+    expect(targets(log.active)).toEqual(['a', 'b']);
+  });
+});

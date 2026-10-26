@@ -42,7 +42,7 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
   function createRow(node: SceneNode): HTMLElement {
     const row = document.createElement('div');
     row.className = 'outliner-row';
-    row.style.paddingLeft = `${8 + node.depth * 18}px`;
+    row.style.paddingLeft = `${8 + node.depth * 14}px`; // 8, then 22, then 36
     row.title = `${node.type}: ${node.id}${hidden.has(node.id) ? ' (hidden)' : ''}`;
     row.classList.toggle('hidden-node', isHidden(node.id));
 
@@ -59,6 +59,7 @@ export function createOutliner(root: HTMLElement, selection: Selection): Outline
 
     const dot = document.createElement('span');
     dot.className = `type-dot ${node.type}`; // style.css colours it by type
+    if (node.type === 'mesh' && !animated.has(node.id)) dot.classList.add('still'); // set dressing
     if (node.object instanceof Light) dot.style.background = `#${node.object.color.getHexString()}`;
 
     const label = document.createElement('span');

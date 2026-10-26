@@ -4,21 +4,53 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RapidVis</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   </head>
   <body>
     <div id="app">
-      <main id="viewport"></main>
+      <main id="viewport">
+        <!-- Until a shot is open: the logo, in the theme's colours -->
+        <div class="empty-logo" aria-hidden="true">
+          <img class="logo-dark" src="./lockup-on-dark.svg" alt="" />
+          <img class="logo-light" src="./lockup-on-light.svg" alt="" />
+        </div>
+      </main>
       <!-- Everything else floats over the 3D view; clicks between the cards reach the viewport -->
       <div class="overlay">
+        <!-- Three equal zones, so the command bar stays centred in the window -->
         <header class="header">
-          <div class="shot-chip">
-            <span id="shot-name">RapidVis</span>
-            <span id="shot-info"></span>
+          <div class="header-zone">
+            <button id="scene-toggle" class="header-icon" type="button">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <rect x="1" y="2" width="18" height="16" rx="3" />
+                <path d="M9 2v16" />
+              </svg>
+            </button>
           </div>
           <div id="command-slot" class="command-slot"></div>
-          <div class="header-buttons">
-            <div id="header-tools" class="header-tools"></div>
-            <button id="open-button" class="open-button" type="button">Open shot…</button>
+          <div id="shot-zone" class="header-zone shot-zone">
+            <button id="changes-toggle" class="header-icon" type="button">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+              </svg>
+            </button>
           </div>
         </header>
         <div class="middle">
@@ -26,11 +58,12 @@
             <h2 class="card-label">Scene</h2>
             <p id="status">Drop a shot folder (or a .glb and its manifest) anywhere</p>
           </aside>
-          <aside id="properties" class="card properties-card" hidden></aside>
+          <aside id="changes" class="card changes-card"></aside>
         </div>
         <footer id="timeline"></footer>
       </div>
       <input id="file-input" type="file" accept=".glb,.json" multiple hidden />
+      <input id="edits-input" type="file" accept=".json" hidden />
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

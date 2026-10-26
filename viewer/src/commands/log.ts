@@ -17,6 +17,7 @@ export class CommandLog {
   private entries: LogEntry[] = [];
 
   private position = 0;
+  private comparing = false;
   private listeners: Array<() => void> = [];
 
   /** The commands that are currently applied (muted or not), oldest first. */
@@ -29,8 +30,9 @@ export class CommandLog {
     return this.entries.slice(this.position).map((entry) => entry.command);
   }
 
-  /** The applied commands that aren't muted: what the scene should show. */
+  /** The applied commands that aren't muted: what the scene should show. None while comparing. */
   get active(): readonly Command[] {
+    if (this.comparing) return [];
     return this.entries
       .slice(0, this.position)
       .filter((entry) => !entry.muted)
@@ -40,6 +42,21 @@ export class CommandLog {
   /** The applied commands with their muted flags: what "Save edits" writes. */
   get appliedEntries(): readonly LogEntry[] {
     return this.entries.slice(0, this.position);
+  }
+
+  /** True while every edit is switched off, to compare with the original shot. */
+  get isComparing(): boolean {
+    return this.comparing;
+  }
+
+  /**
+   * Switches every edit off (or back on) to see the original shot. Like muting, it changes
+   * nothing in the history, so it isn't undoable and isn't saved.
+   */
+  setComparing(on: boolean) {
+    if (on === this.comparing) return;
+    this.comparing = on;
+    this.notify();
   }
 
   isMuted(index: number): boolean {
@@ -54,19 +71,19 @@ export class CommandLog {
     // A new command replaces whatever had been undone, like in any editor
     this.entries = [...this.entries.slice(0, this.position), { command, muted: false }];
     this.position = this.entries.length;
-    this.notify();
+    this.edited();
   }
 
   undo() {
     if (this.position === 0) return;
     this.position--;
-    this.notify();
+    this.edited();
   }
 
   redo() {
     if (this.position === this.entries.length) return;
     this.position++;
-    this.notify();
+    this.edited();
   }
 
   /** Jumps to just after the command at `index`. -1 means before every command: the original shot. */
@@ -74,7 +91,7 @@ export class CommandLog {
     const position = index + 1;
     if (position < 0 || position > this.entries.length || position === this.position) return;
     this.position = position;
-    this.notify();
+    this.edited();
   }
 
   /** Removes one applied command from the middle of the history. */
@@ -82,7 +99,7 @@ export class CommandLog {
     if (index < 0 || index >= this.position) return;
     this.entries = this.entries.toSpliced(index, 1);
     this.position--;
-    this.notify();
+    this.edited();
   }
 
   /**
@@ -93,19 +110,25 @@ export class CommandLog {
     const entry = this.entries[index];
     if (!entry || index >= this.position) return;
     this.entries = this.entries.with(index, { ...entry, muted: !entry.muted });
-    this.notify();
+    this.edited();
   }
 
   /** Replaces the whole history, e.g. with edits loaded from a file. Every entry ends up applied. */
   load(entries: readonly LogEntry[]) {
     this.entries = [...entries];
     this.position = this.entries.length;
-    this.notify();
+    this.edited();
   }
 
   clear() {
     this.entries = [];
     this.position = 0;
+    this.edited();
+  }
+
+  /** A real change to the history: stop comparing, so the scene shows it, then tell everyone. */
+  private edited() {
+    this.comparing = false;
     this.notify();
   }
 

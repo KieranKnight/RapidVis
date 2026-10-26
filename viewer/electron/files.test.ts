@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { isShotFile, shotArgument, shotFileNames } from './files.mts';
+import {
+  addRecent,
+  isShotFile,
+  MAX_RECENT,
+  readRecent,
+  shotArgument,
+  shotFileNames,
+  shotName,
+} from './files.mts';
 
 const folder = [
   'test_shot.glb',
@@ -51,5 +59,39 @@ describe('shotArgument', () => {
 
   it('is undefined when the app is opened without a shot', () => {
     expect(shotArgument([])).toBeUndefined();
+  });
+});
+
+describe('shotName', () => {
+  it('names a shot after its .glb or manifest, or its folder', () => {
+    expect(shotName('C:\\shots\\sh010.glb')).toBe('sh010');
+    expect(shotName('C:\\shots\\sh010.manifest.json')).toBe('sh010');
+    expect(shotName('C:\\shots\\sh020\\')).toBe('sh020');
+  });
+});
+
+describe('addRecent', () => {
+  it('puts the newest shot first, without repeating one opened again', () => {
+    const list = addRecent(addRecent([], 'C:\\a.glb'), 'C:\\b.glb');
+    expect(addRecent(list, 'c:\\A.GLB').map((shot) => shot.name)).toEqual(['A', 'b']);
+  });
+
+  it(`keeps only the last ${MAX_RECENT}`, () => {
+    let list = addRecent([], 'C:\\0.glb');
+    for (let i = 1; i < 12; i++) list = addRecent(list, `C:\\${i}.glb`);
+    expect(list).toHaveLength(MAX_RECENT);
+    expect(list[0].name).toBe('11');
+  });
+});
+
+describe('readRecent', () => {
+  it('reads a saved list, and drops anything that does not look like a shot', () => {
+    const json = JSON.stringify([{ path: 'C:\\a.glb', name: 'a' }, { path: 3 }, 'nonsense']);
+    expect(readRecent(json)).toEqual([{ path: 'C:\\a.glb', name: 'a' }]);
+  });
+
+  it('starts empty from a missing or broken file', () => {
+    expect(readRecent('')).toEqual([]);
+    expect(readRecent('{"not": "a list"}')).toEqual([]);
   });
 });
