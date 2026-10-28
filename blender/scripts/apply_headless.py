@@ -23,5 +23,5 @@ for problem in problems:
     print(f"RapidVis: problem: {problem}")
 
 if len(args) > 1:
-    manifest = export_shot(bpy.context, str(Path(args[1]).resolve()))
-    print(f"RapidVis: exported {args[1]} and {manifest}")
+    result = export_shot(bpy.context, str(Path(args[1]).resolve()))
+    print(f"RapidVis: exported {args[1]} and {result.manifest}")

@@ -1,0 +1,113 @@
+# Tests, then builds the viewer and the Blender add-on (with the viewer inside) on Windows, Linux
+# and macOS. Every push and pull request gets the builds as artifacts; pushing a tag like v1.2.3
+# (which must match version.json) also publishes them as a GitHub Release.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Every version matches version.json (and the tag, when releasing)
+        run: node scripts/build.mjs version --check ${{ startsWith(github.ref, 'refs/tags/') && format('--tag {0}', github.ref_name) || '' }}
+
+      - name: Viewer tests and type-checks
+        working-directory: viewer
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx tsc -p tsconfig.electron.json --noEmit
+          npm test
+
+      - name: Blender add-on tests
+        working-directory: blender
+        run: |
+          pip install pytest
+          python -m pytest
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: windows-x64, os: windows-latest }
+          - { platform: linux-x64, os: ubuntu-latest }
+          - { platform: macos-arm64, os: macos-latest }
+          - { platform: macos-x64, os: macos-latest } # built for Intel Macs on an Apple Silicon runner
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # no signing certificates yet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+
+      - name: Install the viewer's packages
+        working-directory: viewer
+        run: npm ci
+
+      - name: Build the viewer, then the add-on with it inside
+        run: node scripts/build.mjs all --platform ${{ matrix.platform }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rapidvis-${{ matrix.platform }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.zip
+          if-no-files-found: error
+          compression-level: 0 # already compressed
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # A tag like v1.2.0-beta.1 is published as a pre-release
+          prerelease=$([[ "$TAG" == *-* ]] && echo --prerelease || true)
+          gh release create "$TAG" assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "RapidVis $TAG" \
+            --generate-notes \
+            $prerelease

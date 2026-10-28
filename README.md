@@ -27,6 +27,7 @@ RapidVis is a review tool for VFX and pre-vis shots. You export a shot from Blen
 - [How it works](#how-it-works)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Building](#building)
 - [Using RapidVis](#using-rapidvis)
 - [Commands](#commands)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -63,42 +64,75 @@ RapidVis is a review tool for VFX and pre-vis shots. You export a shot from Blen
 
 | For | You need |
 | --- | --- |
-| Running the viewer from source | [Node.js](https://nodejs.org/) 24 or newer (npm comes with it) |
+| Building from source | [Node.js](https://nodejs.org/) 24 or newer (npm comes with it) |
 | Exporting and applying edits | [Blender](https://www.blender.org/) 5.1 or newer |
 | Movie export | A browser engine with WebCodecs (the desktop app has one built in) |
 
-The desktop build is set up for Windows. The app also runs on macOS from source (`npm run app`), but there's no packaged Mac build yet.
+Releases are built for Windows (x64), macOS (Apple Silicon and Intel) and Linux (x64).
 
 ## Installation
 
-### 1. The RapidVis app
+Download from the [latest release](https://github.com/KieranKnight/RapidVis/releases/latest). Each release has two things for each system:
+
+| File | What it is |
+| --- | --- |
+| `rapidvis-blender-<version>-<system>.zip` | **The Blender add-on, with the viewer inside.** This is all you need to use RapidVis from Blender. |
+| `RapidVis-<version>-<system>-setup.exe` / `.dmg` / `.AppImage` | **The viewer on its own,** for reviewing shots without Blender (opening them from disk, or dropping them on the window) |
+
+`<system>` is `windows-x64`, `macos-arm64` (Apple Silicon), `macos-x64` (Intel) or `linux-x64`.
+
+### The Blender add-on
+
+1. In Blender, open **Edit › Preferences › Get Extensions**. In the **⌄** menu at the top right, choose **Install from Disk…** and pick the `rapidvis-blender-…zip` for your system.
+2. That's it. The first time you export a shot, the add-on unpacks the viewer it carries, which takes a few seconds, once per version.
+
+To open shots in a different copy of RapidVis instead (a newer build, say), set **Use another RapidVis** in **Edit › Preferences › Add-ons › RapidVis**.
+
+### Unsigned builds
+
+The builds aren't code-signed yet, so the first launch needs one extra click:
+- **Windows:** SmartScreen may warn; choose **More info › Run anyway**.
+- **macOS:** right-click the app and choose **Open**.
+- **Linux:** make the AppImage executable (`chmod +x`).
+
+## Building
+
+Everything builds with one script, locally or on GitHub's runners, and every version comes from [`version.json`](version.json):
 
 ```bash
-git clone https://github.com/KieranKnight/RapidVis.git
-cd RapidVis/viewer
-npm install
+cd viewer && npm ci && cd ..
+node scripts/build.mjs            # the viewer and the add-on, for this computer
 ```
 
-Then pick how to run it:
+That leaves the installer and the add-on zip in `dist/`. You can also build them one at a time:
 
-| Command | What you get |
+| Command | What it does |
+| --- | --- |
+| `node scripts/build.mjs viewer` | Just the viewer: its installer, plus the copy the add-on carries |
+| `node scripts/build.mjs addon` | Just the add-on, around the last viewer build |
+| `node scripts/build.mjs version` | Writes `version.json`'s version into `viewer/package.json` and the Blender manifest |
+| `… --platform macos-x64` | Builds for another architecture of the same system (an Intel build on an Apple Silicon Mac) |
+| `… --blender <path to Blender>` | Also checks the add-on with Blender's own validator |
+
+For working on the viewer itself:
+
+| Command (in `viewer/`) | What you get |
 | --- | --- |
 | `npm run dev` | The viewer in your browser at <http://localhost:5173>, reloading as you edit the code |
 | `npm run app` | The desktop app, built and started |
-| `npm run package` | A standalone Windows app in `viewer/release/win-unpacked/RapidVis.exe` |
 
-### 2. The Blender add-on
+Without a bundled viewer (running the add-on straight from `blender/rapidvis_addon`), the add-on uses the app set in **Use another RapidVis**.
 
-The add-on is a Blender extension. Build it into a `.zip` with Blender's own tool:
+### Releasing
 
-```bash
-blender --command extension build --source-dir blender/rapidvis_addon --output-dir .
-```
+The [Build workflow](.github/workflows/build.yml) tests and builds every system on each push and pull request; the builds are attached to the run as artifacts. To publish a release:
 
-Then, in Blender:
-
-1. Open **Edit › Preferences › Get Extensions**, and in the **⌄** menu at the top right choose **Install from Disk…**. Pick the `rapidvis-0.1.0.zip` you just built.
-2. In **Edit › Preferences › Add-ons › RapidVis**, set **RapidVis app** to your `RapidVis.exe` (or `RapidVis.app` on a Mac). This is what lets *Export to RapidVis* open the shot for you.
+1. Set the new version in `version.json`, run `node scripts/build.mjs version`, and commit.
+2. Tag the commit with the same version and push the tag:
+   ```bash
+   git tag v0.2.0 && git push origin v0.2.0
+   ```
+3. The workflow builds Windows, macOS (Apple Silicon and Intel) and Linux, then publishes them all as a GitHub Release. A tag like `v0.2.0-beta.1` becomes a pre-release, and a tag that doesn't match `version.json` stops the build.
 
 ## Using RapidVis
 
@@ -200,6 +234,9 @@ RapidVis/
 │   ├── rapidvis_addon/        The Blender extension: export, apply edits, preferences
 │   ├── scripts/               Headless export / apply, and the test-shot generator
 │   └── tests/                 Pytest
+├── scripts/build.mjs          Builds the viewer and the add-on (with the viewer inside)
+├── version.json               The one version everything is built with
+├── .github/workflows/         Tests, builds every system, and publishes releases
 ├── docs/                      File format notes
 ├── fixtures/                  A test shot
 └── resources/RapidVis-logo/   The logo pack (SVG, PNG, ICO)

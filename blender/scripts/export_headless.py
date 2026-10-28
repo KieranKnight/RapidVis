@@ -14,5 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # the `blender/` f
 from rapidvis_addon.export import export_shot  # noqa: E402 (Needs the path above first)
 
 glb_path = str(Path(sys.argv[sys.argv.index("--") + 1]).resolve())  # Blender ignores args after "--"
-manifest = export_shot(bpy.context, glb_path)
-print(f"RapidVis: wrote {glb_path} and {manifest}")
+result = export_shot(bpy.context, glb_path)
+print(f"RapidVis: wrote {glb_path} and {result.manifest}")
+if result.summary():
+    print(f"RapidVis: left out {result.summary()}: {', '.join(result.left_out)}")

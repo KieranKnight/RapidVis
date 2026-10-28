@@ -1,7 +1,9 @@
 {
   "name": "viewer",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "RapidVis: review pre-vis shots and change them with typed commands",
+  "author": "Kieran Knight",
   "type": "module",
   "main": "dist-electron/main.mjs",
   "scripts": {
@@ -42,12 +44,25 @@
     "directories": {
       "output": "release"
     },
+    "artifactName": "RapidVis-${version}-${os}-${arch}.${ext}",
     "win": {
-      "target": "dir",
+      "target": "nsis",
       "icon": "build/icon.ico"
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
     "mac": {
-      "icon": "build/icon.png"
+      "target": "dmg",
+      "icon": "build/icon.png",
+      "category": "public.app-category.graphics-design"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png",
+      "executableName": "rapidvis",
+      "category": "Graphics"
     }
   }
 }
